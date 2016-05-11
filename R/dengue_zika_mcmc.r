@@ -99,7 +99,6 @@ dt_ts <- bind_rows(ts) %>%
     select(day, obs_id, value) %>%
     complete(day, obs_id, fill = list(value = 0))
 
-obs_filename <- "vbd_obs.nc"
 
 ## setting-specific adjustments
 init <- list(p_N_h = data.frame(setting = c("yap", "fais"), value = c(7391, 294)))
