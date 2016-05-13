@@ -99,7 +99,6 @@ dt_ts <- bind_rows(ts) %>%
     select(day, obs_id, value) %>%
     complete(day, obs_id, fill = list(value = 0))
 
-
 ## setting-specific adjustments
 init <- list(p_N_h = data.frame(setting = c("yap", "fais"), value = c(7391, 294)))
 
@@ -115,6 +114,14 @@ if (length(model_file) == 0)
 }
 
 model <- bi_model(model_file_name)
+if (verbose) ## all states
+{
+  no_output_pattern <- "has_output[[:space:]]*=[[:space:]]*0"
+  no_output <- grep(no_output_pattern, model$get_lines())
+  updated_lines <- sub(no_output_pattern, "",
+                       model$get_lines()[no_output])
+  model$update_lines(no_output, updated_lines)
+}
 
 ## update model lines for requested number of Erlang compartments
 erlang <- c(h = "erlang_human", m = "erlang_vector")
