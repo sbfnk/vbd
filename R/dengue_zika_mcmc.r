@@ -305,7 +305,7 @@ final_model <- bi_wrapper$model
 res <- bi_read(read = bi_wrapper, thin = thin,
                vars = c(final_model$get_vars("param"),
                         final_model$get_vars("noise"),
-                        "loglikelihood", "logprior"),
+                        "loglikelihood", "logprior", "Z_h"),
                dims = dims, verbose = verbose)
 
 ## 25% burn-in
@@ -356,6 +356,7 @@ cat(date(), "..parameters.\n")
 l <- lapply(names(res), function(x) {
     res[[x]] %>% mutate(state = x)
 })
+
 
 params <- rbind_all(l)
 if ("nr" %in% names(params))
@@ -410,15 +411,25 @@ save_plot(paste(output_file_name, "r0.pdf", sep = "_"), p_R0)
 
 if (sample_obs)
 {
-    cat(date(), "Sampling from the joint distribution.\n")
-    libbi_seed <- ceiling(runif(1, -1, .Machine$integer.max - 1))
-    ## re-index np dimension
+    states <- bind_rows(l) %>%
+        filter(state == "Z_h") %>%
+        group_by(nr, disease, np, state, setting) %>%
+        summarise(value = sum(value)) %>%
+        ungroup() %>% 
+        spread(state, value)
 
-    res_obs <-
-        sample_observations(bi_wrapper,
-                            read_options = list(dims = dims, thin = thin,
-                                                verbose = verbose),
-                            add_options = list(seed = libbi_seed))
+    rep_params <- params_all %>%
+        filter(state %in% c("p_rep", "p_phi_mult", "p_phi_add")) %>%
+        spread(state, value) %>%
+        select(-patch)
+
+    states <- states %>% 
+        left_join(rep_params, by = c("disease", "np", "setting")) %>%
+        mutate(obs_id = paste(setting, disease, sep = "_")) %>%
+        filter(obs_id != "fais_zika")
+
+    res$Cases <- states %>%
+        mutate(value = rnorm(nrow(states), p_rep * Z_h, sqrt(p_rep * Z_h + (p_phi_mult**2 * p_rep**2 * Z_h**2 + p_phi_add))))
 
     ## manipulate data to match sampled observations
     data <- dt_ts %>%
@@ -434,9 +445,11 @@ if (sample_obs)
     data <- data %>%
         filter(time >= first_obs & time <= last_obs)
 
-    p_obs <- plot_libbi(read = res_obs, model = final_model, data = data,
+    p_obs <- plot_libbi(read = res, model = final_model, data = data,
                         density_args = list(adjust = 2), burn = burn,
-                        extra.aes = list(color = "obs_id"))
+                        extra.aes = list(color = "obs_id"),
+                        states = "Cases", params = NULL, noises = NULL,
+                        trend = "mean")$states + facet_grid(~ obs_id)
 
     if (!is.null(p_obs[["states"]]))
     {
@@ -445,6 +458,8 @@ if (sample_obs)
 
     saveRDS(p_obs$data, paste0(output_file_name, "_obs_fits.rds"))
 }
+
+saveRDS(res, paste0(output_file_name, ".rds"))
 
 if (!keep) unlink(working_folder, recursive = TRUE)
 
