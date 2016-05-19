@@ -87,7 +87,7 @@ model vbd {
     p_lm[setting] ~ uniform(lower = -1, upper = 2)
     p_t_start[setting,disease] ~ uniform(lower = 0, upper = 64)
 
-    p_phi_mult[disease] ~ uniform(lower = 0, upper = 0.5)
+    p_phi_mult[disease] ~ uniform(lower = 0, upper = 1)
     p_phi_add[disease] ~ uniform(lower = 1, upper = 5)
 
     p_initial_susceptible ~ uniform(lower = 0, upper = 1)
@@ -178,7 +178,7 @@ model vbd {
   }
 
   sub observation {
-    Cases[obs_id] ~ truncated_gaussian(mean = p_rep[obs_id / 2] * (Z_h[0,obs_id % 2,obs_id / 2] + Z_h[1,obs_id % 2,obs_id / 2]), std = sqrt(p_rep[obs_id / 2] * (Z_h[0,obs_id % 2,obs_id / 2] + Z_h[1,obs_id % 2,obs_id / 2]) + (p_phi_mult[obs_id / 2] ** 2) * (p_rep[obs_id / 2] ** 2) * ((Z_h[0,obs_id % 2,obs_id / 2] + Z_h[1,obs_id % 2,obs_id / 2]) ** 2) + p_phi_add[obs_id / 2]), lower = 0)
+    Cases[obs_id] ~ truncated_gaussian(mean = p_rep[obs_id / 2] * (Z_h[0,obs_id % 2,obs_id / 2] + Z_h[1,obs_id % 2,obs_id / 2]), std = sqrt((p_rep[obs_id / 2] * (1 - p_rep[obs_id / 2]) * (Z_h[0,obs_id % 2,obs_id / 2] + Z_h[1,obs_id % 2,obs_id / 2]) + p_phi_add[obs_id / 2]) / p_phi_mult[obs_id / 2]), lower = 0)
   }
 
   sub proposal_initial {
