@@ -1,7 +1,5 @@
 library('docopt')
 
-code_dir <- path.expand("~/code/vbd/")
-
 "Script for fitting the dengue/zika model to the yap/fais data
 
 Usage: explore_posterior.r [options]
@@ -44,7 +42,7 @@ seed <- as.integer(opts[["seed"]])
 thin <- as.integer(opts[["thin"]])
 output_file_name <- opts[["output"]]
 model_file <- opts[["model-file"]]
-demo_stoch <- opts[["stochastic"]]
+stoch <- opts[["stochastic"]]
 sample_obs <- opts[["sample-observations"]]
 sample_prior <- opts[["sample-prior"]]
 force <- opts[["force"]]
@@ -57,6 +55,9 @@ library('RBi')
 library('RBi.helpers')
 library('cowplot')
 library('stringi')
+
+code_dir <- path.expand("~/code/vbd/")
+data_dir <-  path.expand("~/Data/Zika/")
 
 ## read data
 analyses <- list(c(setting = "yap", disease = "dengue"), c(setting = "yap", disease = "zika"), c(setting = "fais", disease = "dengue"))
@@ -147,7 +148,7 @@ if (length(output_file_name) == 0)
             filebase <- paste(filebase, paste0(comp, opts[[erlang[comp]]]), sep = "_")
         }
     }
-    output_file_name <- paste(filebase, ifelse(demo_stoch, "sto", "det"), sep = "_")
+    output_file_name <- paste0(data_dir, "/", filebase, "_", ifelse(stoch, "sto", "det"))
 }
 cat("Output: ",  output_file_name, "\n")
 
@@ -156,7 +157,7 @@ if (!force && file.exists(paste0(output_file_name, "_params.rds")))
     stop("exists")
 }
 ## working folder
-working_folder <- path.expand(paste("work", output_file_name, sep = "_"))
+working_folder <- path.expand(output_file_name)
 unlink(working_folder, recursive = TRUE)
 suppressWarnings(dir.create(working_folder))
 
@@ -191,7 +192,7 @@ if (sample_prior)
     prior$model$write_model_file(prior_model_file)
 }
 
-##model_det <- model$fix(default = 0)
+model_det <- model$fix(n_S_move = 0, n_E_move = 0, n_I_move = 0, n_R_move = 0)
 model_det_prior <- model$propose_prior()
 
 ## sample prior with likelihoods
@@ -215,7 +216,7 @@ if (length(model_file) == 0)
     bi_wrapper_adapted <- bi_wrapper_prior
 }
 
-if (demo_stoch)
+if (stoch)
 {
     if (length(model_file) == 0)
     {
@@ -240,8 +241,8 @@ if (demo_stoch)
                              add_options = list("init-np" = pre_samples - 1))
 
         ## number of data points as number of particles
-        bi_wrapper_stoch$global_options[["nparticles"]] <-
-            2**ceiling(log(nrow(dt_ts), 2))
+        ## bi_wrapper_stoch$global_options[["nparticles"]] <-
+        ##     2**ceiling(log(nrow(dt_ts), 2))
         cat(date(), "Starting adaptation of the number of particles.\n")
         bi_wrapper_particle_adapted <-
             adapt_particles(bi_wrapper_stoch,
@@ -322,7 +323,8 @@ dt_ts <- dt_ts %>% mutate(state = "Cases")
 
 plot_args <- list(read = res, model = final_model,
                   density_args = list(adjust = 2), burn = burn,
-                  extra.aes = list(color = "disease", linetype = "setting"))
+                  extra.aes = list(color = "disease", linetype = "setting"),
+                  plot = FALSE)
 if (sample_prior)
 {
     plot_args[["prior"]] <- res_prior
@@ -449,7 +451,8 @@ if (sample_obs)
                         density_args = list(adjust = 2), burn = burn,
                         extra.aes = list(color = "obs_id"),
                         states = "Cases", params = NULL, noises = NULL,
-                        trend = "mean")$states + facet_grid(~ obs_id)
+                        trend = "mean", plot = FALSE)$states +
+                                                    facet_grid(~ obs_id)
 
     if (!is.null(p_obs[["states"]]))
     {
