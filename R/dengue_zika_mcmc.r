@@ -230,6 +230,9 @@ if (stoch)
     {
         bi_wrapper_stoch$global_options[["nparticles"]] <- num_particles
         bi_wrapper_particle_adapted <- bi_wrapper_stoch
+    } else
+    {
+        bi_wrapper_stoch$global_options[["nparticles"]] <- 1
     }
     if (length(model_file) == 0 || length(num_particles) == 0)
     {
