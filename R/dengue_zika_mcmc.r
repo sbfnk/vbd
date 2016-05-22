@@ -326,7 +326,7 @@ dt_ts <- dt_ts %>% mutate(state = "Cases")
 
 plot_args <- list(read = res, model = final_model,
                   density_args = list(adjust = 2), burn = burn,
-                  extra.aes = list(color = "disease", linetype = "setting"),
+                  extra.aes = c(color = "disease", linetype = "setting"),
                   plot = FALSE)
 if (sample_prior)
 {
@@ -362,8 +362,7 @@ l <- lapply(names(res), function(x) {
     res[[x]] %>% mutate(state = x)
 })
 
-
-params <- rbind_all(l)
+params <- bind_rows(l)
 if ("nr" %in% names(params))
 {
     params <- params %>%
@@ -378,7 +377,7 @@ params_disease <-
 params_all <-
     rbind(params %>%
           filter(!is.na(disease)),
-          rbind_all(params_disease))
+          bind_rows(params_disease))
 
 params_setting <-
     lapply(levels(factor(params$setting)),
@@ -387,7 +386,7 @@ params_setting <-
 params_all <-
     rbind(params_all %>%
           filter(!is.na(setting)),
-          rbind_all(params_setting))
+          bind_rows(params_setting))
 
 r0 <- params_all %>%
     spread(state, value) %>%
@@ -420,7 +419,7 @@ if (sample_obs)
         filter(state == "Z_h") %>%
         group_by(nr, disease, np, state, setting) %>%
         summarise(value = sum(value)) %>%
-        ungroup() %>% 
+        ungroup() %>%
         spread(state, value)
 
     rep_params <- params_all %>%
@@ -428,13 +427,13 @@ if (sample_obs)
         spread(state, value) %>%
         select(-patch)
 
-    states <- states %>% 
+    states <- states %>%
         left_join(rep_params, by = c("disease", "np", "setting")) %>%
         mutate(obs_id = paste(setting, disease, sep = "_")) %>%
         filter(obs_id != "fais_zika")
 
     res$Cases <- states %>%
-        mutate(value = rnorm(nrow(states), p_rep * Z_h, sqrt(p_rep * Z_h + (p_phi_mult**2 * p_rep**2 * Z_h**2 + p_phi_add))))
+        mutate(value = rnorm(nrow(states), p_rep * Z_h, sqrt((p_rep * (1 - p_rep) * Z_h + p_phi_add) / p_phi_mult)))
 
     ## manipulate data to match sampled observations
     data <- dt_ts %>%
@@ -454,13 +453,11 @@ if (sample_obs)
                         density_args = list(adjust = 2), burn = burn,
                         extra.aes = list(color = "obs_id"),
                         states = "Cases", params = NULL, noises = NULL,
-                        trend = "mean", plot = FALSE)$states +
-                                                    facet_grid(~ obs_id)
+                        trend = "mean", plot = FALSE)
 
-    if (!is.null(p_obs[["states"]]))
-    {
-        ggsave(paste(output_file_name, "states.pdf", sep = "_"), p_obs$states)
-    }
+    p_obs_grid <- p_obs$states + facet_grid(~ obs_id)
+
+    ggsave(paste(output_file_name, "states.pdf", sep = "_"), p_obs_grid)
 
     saveRDS(p_obs$data, paste0(output_file_name, "_obs_fits.rds"))
 }
@@ -468,6 +465,3 @@ if (sample_obs)
 saveRDS(res, paste0(output_file_name, ".rds"))
 
 if (!keep) unlink(working_folder, recursive = TRUE)
-
-quit()
-
