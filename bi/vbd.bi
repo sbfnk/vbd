@@ -119,11 +119,6 @@ model vbd {
     Z_h[patch,setting,disease] <- (t_next_obs > next_obs[setting,disease] ? 0 : Z_h[patch,setting,disease])
     next_obs[setting,disease] <- (t_next_obs > next_obs[setting,disease] ? t_next_obs : next_obs[setting,disease])
 
-    I_h[patch,setting,disease] <- (started[setting,disease] == 0 && t_now >= p_t_start[setting,disease] && patch == 0 ? 1 : I_h[patch,setting,disease])
-    S_h[patch,setting,disease] <- (started[setting,disease] == 0 && t_now >= p_t_start[setting,disease] && patch == 0 ? S_h[patch,setting,disease] - 1 : S_h[patch,setting,disease])
-    Z_h[patch,setting,disease] <- (started[setting,disease] == 0 && t_now >= p_t_start[setting,disease] && patch == 0 ? 1 : Z_h[patch,setting,disease])
-    started[setting,disease] <- (t_now >= p_t_start[setting,disease] ? 1 : 0)
-
     // movement on yap
     n_S_move[patch,disease] ~ gaussian(p_r_patch_yap * S_h[patch,0,disease], sqrt(p_r_patch_yap * (1 - p_r_patch_yap) * S_h[patch,0,disease]))
     n_E_move[patch,disease,delta_erlang_h] ~ gaussian(p_r_patch_yap * E_h[patch,0,disease,delta_erlang_h], sqrt(p_r_patch_yap * (1 - p_r_patch_yap) * E_h[patch,0,disease,delta_erlang_h]))
@@ -175,43 +170,17 @@ model vbd {
       + e_delta_m * (1 / p_d_inc_m[disease]) * E_m[patch,setting,disease,e_delta_m - 1]
       - r_death_m * I_m[patch,setting,disease]
     }
+
+    I_h[0,setting,disease] <- (started[setting,disease] == 0 && (t_now + 1) >= p_t_start[setting,disease] ? 1 : I_h[0,setting,disease])
+    S_h[0,setting,disease] <- (started[setting,disease] == 0 && (t_now + 1) >= p_t_start[setting,disease] ? S_h[0,setting,disease] - 1 : S_h[0,setting,disease])
+    Z_h[0,setting,disease] <- (started[setting,disease] == 0 && (t_now + 1) >= p_t_start[setting,disease] ? 1 : Z_h[0,setting,disease])
+
+    started[setting,disease] <- ((t_now + 1) >= p_t_start[setting,disease] ? 1 : 0 * Z_h[0,setting,disease]) // put Z_h in so libbi doesn't rearrange
+
   }
 
   sub observation {
     Cases[obs_id] ~ truncated_gaussian(mean = p_rep[obs_id / 2] * (Z_h[0,obs_id % 2,obs_id / 2] + Z_h[1,obs_id % 2,obs_id / 2]), std = sqrt((p_rep[obs_id / 2] * (1 - p_rep[obs_id / 2]) * (Z_h[0,obs_id % 2,obs_id / 2] + Z_h[1,obs_id % 2,obs_id / 2]) + p_phi_add[obs_id / 2]) / p_phi_mult[obs_id / 2]), lower = 0)
   }
 
-  sub proposal_initial {
-    S_h[patch,setting,disease] <- (setting == 0 && disease == 0 ? p_initial_susceptible : 1) * p_N_h[setting]
-    E_h[patch,setting,disease,delta_erlang_h] <- 0
-    I_h[patch,setting,disease] <- 0
-    R_h[patch,setting,disease] <- 0
-    S_h_move[patch,disease] <- 0
-    E_h_move[patch,disease,delta_erlang_h] <- 0
-    I_h_move[patch,disease] <- 0
-    R_h_move[patch,disease] <- 0
-    C_h[patch,setting,disease] <- 0
-    Z_h[patch,setting,disease] <- 0
-    E_m[patch,setting,disease,delta_erlang_m] <- 0
-    S_m[patch,setting,disease] <- 1
-    I_m[patch,setting,disease] <- 0
-    next_obs[setting,disease] <- 0
-    started[setting,disease] <- 0
-  }
-  sub proposal_parameter {
-    p_d_inc_h[disease] ~ gaussian(mean = p_d_inc_h[disease], std = 0.05)
-    p_d_inc_m[disease] ~ gaussian(mean = p_d_inc_m[disease], std = 0.1)
-    p_d_inf_h[disease] ~ truncated_gaussian(mean = p_d_inf_h[disease], std = 0.05, lower = 0)
-    p_d_life_m ~ truncated_gaussian(mean = p_d_life_m, std = 0.15, lower = 4, upper = 30)
-    p_tau[setting] ~ truncated_gaussian(mean = p_tau[setting], std = 0.005, lower = 0.3, upper = 1)
-    p_p_asymptomatic[disease] ~ truncated_gaussian(mean = p_p_asymptomatic[disease], std = 0.0035, lower = 0, upper = 1)
-    p_lm[setting] ~ truncated_gaussian(mean = p_lm[setting], std = 0.0075, lower = -1, upper = 2)
-    p_initial_susceptible ~ truncated_gaussian(mean = p_initial_susceptible, std = 0.003, lower = 0, upper = 1)
-    p_rep[disease] ~ truncated_gaussian(mean = p_rep[disease], std = 0.015, lower = 0, upper = 1)
-    p_b_h[disease] ~ truncated_gaussian(mean = p_b_h[disease], std = 0.002, lower = 0, upper = 1)
-    p_b_m[disease] ~ truncated_gaussian(mean = p_b_m[disease], std = 0.002, lower = 0, upper = 1)
-    p_t_start[setting,disease] ~ truncated_gaussian(mean = p_t_start[setting,disease], std = 0.5, lower = 0, upper = 64)
-    p_phi_mult[disease] ~ truncated_gaussian(mean = p_phi_mult[disease], std = 0.001, lower = 0, upper = 0.5)
-    p_phi_add[disease] ~ truncated_gaussian(mean = p_phi_add[disease], std = 0.05, lower = 1, upper = 5)
-  }
 }
