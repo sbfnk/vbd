@@ -45,7 +45,7 @@ model vbd {
   state S_h[patch,setting,disease](has_output = 0) // susceptible
   state E_h[patch,setting,disease,delta_erlang_h](has_output = 0) // incubating
   state I_h[patch,setting,disease](has_output = 0) // infectious
-  state R_h[patch,setting,disease](has_output = 0) // infectious
+  state R_h[patch,setting,disease](has_output = 0) // recovered
   state Z_h[patch,setting,disease] // incidence
   state C_h[patch,setting,disease] // cumulative incidence
 
@@ -102,6 +102,7 @@ model vbd {
     S_h[patch,setting,disease] <- (setting == 0 && disease == 0 ? p_initial_susceptible : 1) * p_N_h[setting] * (setting == 0 ? (patch == 0 ? p_p_patch_yap : 1 - p_p_patch_yap) : 1 - patch)
     E_h[patch,setting,disease,delta_erlang_h] <- 0
     I_h[patch,setting,disease] <- 0
+    R_h[patch,setting,disease] <- 0
     C_h[patch,setting,disease] <- 0
     Z_h[patch,setting,disease] <- 0
     E_m[patch,setting,disease,delta_erlang_m] <- 0
@@ -120,10 +121,10 @@ model vbd {
     next_obs[setting,disease] <- (t_next_obs > next_obs[setting,disease] ? t_next_obs : next_obs[setting,disease])
 
     // movement on yap
-    n_S_move[patch,disease] ~ gaussian(p_r_patch_yap * S_h[patch,0,disease], sqrt(p_r_patch_yap * (1 - p_r_patch_yap) * S_h[patch,0,disease]))
-    n_E_move[patch,disease,delta_erlang_h] ~ gaussian(p_r_patch_yap * E_h[patch,0,disease,delta_erlang_h], sqrt(p_r_patch_yap * (1 - p_r_patch_yap) * E_h[patch,0,disease,delta_erlang_h]))
-    n_I_move[patch,disease] ~ gaussian(p_r_patch_yap * I_h[patch,0,disease], sqrt(p_r_patch_yap * (1 - p_r_patch_yap) * I_h[patch,0,disease]))
-    n_R_move[patch,disease] ~ gaussian(p_r_patch_yap * R_h[patch,0,disease], sqrt(p_r_patch_yap * (1 - p_r_patch_yap) * R_h[patch,0,disease]))
+    n_S_move[patch,disease] ~ gaussian(p_r_patch_yap * S_h[patch,0,disease] / (patch == 0 ? p_p_patch_yap : 1 - p_p_patch_yap), sqrt(p_r_patch_yap * (1 - p_r_patch_yap) * S_h[patch,0,disease] / (patch == 0 ? p_p_patch_yap : 1 - p_p_patch_yap)))
+    n_E_move[patch,disease,delta_erlang_h] ~ gaussian(p_r_patch_yap * E_h[patch,0,disease,delta_erlang_h] / (patch == 0 ? p_p_patch_yap : 1 - p_p_patch_yap), sqrt(p_r_patch_yap * (1 - p_r_patch_yap) * E_h[patch,0,disease,delta_erlang_h] / (patch == 0 ? p_p_patch_yap : 1 - p_p_patch_yap)))
+    n_I_move[patch,disease] ~ gaussian(p_r_patch_yap * I_h[patch,0,disease] / (patch == 0 ? p_p_patch_yap : 1 - p_p_patch_yap), sqrt(p_r_patch_yap * (1 - p_r_patch_yap) * I_h[patch,0,disease] / (patch == 0 ? p_p_patch_yap : 1 - p_p_patch_yap)))
+    n_R_move[patch,disease] ~ gaussian(p_r_patch_yap * R_h[patch,0,disease] / (patch == 0 ? p_p_patch_yap : 1 - p_p_patch_yap), sqrt(p_r_patch_yap * (1 - p_r_patch_yap) * R_h[patch,0,disease] / (patch == 0 ? p_p_patch_yap : 1 - p_p_patch_yap)))
 
     S_h_move[patch,disease] <- - max(0, min(floor(n_S_move[patch,disease] + 0.5), S_h[patch,0,disease])) + max(0, min(floor(n_S_move[1 - patch,disease] + 0.5), S_h[1 - patch,0,disease]))
     E_h_move[patch,disease,delta_erlang_h] <- - max(0, min(floor(n_E_move[patch,disease,delta_erlang_h] + 0.5), E_h[patch,0,disease,delta_erlang_h])) + max(0, min(floor(n_E_move[1 - patch,disease,delta_erlang_h] + 0.5), E_h[1 - patch,0,disease,delta_erlang_h]))
