@@ -192,55 +192,30 @@ if (sample_prior)
     prior$model$write_model_file(prior_model_file)
 }
 
-model_det <- model$fix(n_S_move = 0, n_E_move = 0, n_I_move = 0, n_R_move = 0)
-model_det_prior <- model$propose_prior()
+model_prior <- model$propose_prior()
 
 ## sample prior with likelihoods
-cat(date(), "Sampling from the posterior distribution of the deterministic model with prior = proposal.\n")
+cat(date(), "Sampling from the posterior distribution with prior = proposal.\n")
 libbi_seed <- ceiling(runif(1, -1, .Machine$integer.max - 1))
 global_options[["seed"]] <- libbi_seed
 global_options[["nsamples"]] <- pre_samples
-bi_wrapper_prior <- libbi(model = model_det_prior, run = TRUE,
+bi_wrapper_prior <- libbi(model = model_prior, run = TRUE,
                           obs = list(Cases = dt_ts), time_dim = "day", 
                           global_options = global_options, client = "sample",
                           working_folder = working_folder,
                           init = init, verbose = verbose)
 
-if (length(model_file) == 0)
-{
-    cat(date(), "Starting adaptation of the proposal distribution of the deterministic model.\n")
-    bi_wrapper_adapted <-
-        adapt_mcmc(bi_wrapper_prior, min = 0.1, max = 0.5, max_iter = 10, scale = 2)
-} else
-{
-    bi_wrapper_adapted <- bi_wrapper_prior
-}
-
 if (stoch)
 {
-    if (length(model_file) == 0)
-    {
-        model$add_block("proposal_parameter",
-                        bi_wrapper_adapted$model$get_block("proposal_parameter"))
-        model$add_block("proposal_initial",
-                        bi_wrapper_adapted$model$get_block("proposal_initial"))
-    }
-    bi_wrapper_stoch <- bi_wrapper_adapted$clone(model = model)
+    bi_wrapper_stoch <- bi_wrapper_prior
     if (length(num_particles) > 0)
     {
         bi_wrapper_stoch$global_options[["nparticles"]] <- num_particles
-        bi_wrapper_particle_adapted <- bi_wrapper_stoch
+        bi_wrapper_prior <- bi_wrapper_stoch
     } else
     {
         bi_wrapper_stoch$global_options[["nparticles"]] <- 1
-    }
-    if (length(model_file) == 0 || length(num_particles) == 0)
-    {
-        bi_wrapper_stoch$run(nsamples = pre_samples)
-    }
-    if (length(num_particles) == 0)
-    {
-        bi_wrapper_stoch$run(nsamples = pre_samples, init = bi_wrapper_adapted,
+        bi_wrapper_stoch$run(nsamples = pre_samples, init = bi_wrapper_prior,
                              add_options = list("init-np" = pre_samples - 1))
 
         ## number of data points as number of particles
@@ -250,28 +225,24 @@ if (stoch)
         bi_wrapper_particle_adapted <-
             adapt_particles(bi_wrapper_stoch,
                             min = bi_wrapper_stoch$global_options[["nparticles"]])
+        bi_wrapper_prior <- bi_wrapper_particle_adapted
     }
-    if (length(model_file) == 0)
-    {
-        cat(date(), "Starting adaptation of the proposal distribution of the stochastic model.\n")
-        bi_wrapper_stoch_adapted <- adapt_mcmc(bi_wrapper_particle_adapted,
-                                               min = 0.1, max = 0.5,
-                                               scale = 2, max_iter = 10)
-    } else
-    {
-        bi_wrapper_stoch_adapted <- bi_wrapper_particle_adapted
-    }
-    bi_wrapper <- bi_wrapper_stoch_adapted
-} else
-{
-    ## deterministic model
-    bi_wrapper <- bi_wrapper_adapted
-    bi_wrapper$model <- model
 }
 
-if ("nparticles" %in% names(bi_wrapper$global_options))
+if (length(model_file) == 0)
 {
-    nparticles <- bi_wrapper$global_options[["nparticles"]]
+    cat(date(), "Starting adaptation of the proposal distribution.\n")
+    bi_wrapper_adapted <-
+        adapt_mcmc(bi_wrapper_prior, min = 0.1, max = 0.5, max_iter = 10, scale = 2)
+} else
+{
+    bi_wrapper_adapted <- bi_wrapper_prior
+}
+
+
+if ("nparticles" %in% names(bi_wrapper_adapted$global_options))
+{
+    nparticles <- bi_wrapper_adapted$global_options[["nparticles"]]
 } else
 {
     nparticles <- 1
@@ -291,10 +262,11 @@ cat(date(), "Sampling from the posterior distribution of the full model.\n")
 ## }
 
 libbi_seed <- ceiling(runif(1, -1, .Machine$integer.max - 1))
+bi_wrapper <- bi_wrapper_adapted
 bi_wrapper$run(add_options = list("init-np" = pre_samples - 1,
                                   nsamples = num_samples,
                                   seed = libbi_seed),
-               init = bi_wrapper, verbose = verbose)
+               init = bi_wrapper_adapted, verbose = verbose)
 
 if (length(model_file) == 0)
 {
