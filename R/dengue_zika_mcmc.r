@@ -215,8 +215,8 @@ if (stoch)
     } else
     {
         bi_wrapper_stoch$global_options[["nparticles"]] <- 1
-        bi_wrapper_stoch$run(nsamples = pre_samples, init = bi_wrapper_prior,
-                             add_options = list("init-np" = pre_samples - 1))
+        ## bi_wrapper_stoch$run(nsamples = pre_samples, init = bi_wrapper_prior,
+        ##                      add_options = list("init-np" = pre_samples - 1))
 
         ## number of data points as number of particles
         ## bi_wrapper_stoch$global_options[["nparticles"]] <-
