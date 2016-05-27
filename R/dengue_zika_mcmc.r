@@ -62,14 +62,6 @@ data_dir <-  path.expand("~/Data/Zika/")
 ## read data
 analyses <- list(c(setting = "yap", disease = "dengue"), c(setting = "yap", disease = "zika"), c(setting = "fais", disease = "dengue"))
 
-param_dims <- list(setting = unique(sapply(analyses, function(x) x[["setting"]])),
-                   disease = unique(sapply(analyses, function(x) x[["disease"]])))
-obs_dims <- apply(expand.grid(unique(sapply(analyses, function(x) x[["setting"]])),
-                              unique(sapply(analyses, function(x) x[["disease"]]))),
-                  1, paste, collapse = "_")
-obs_dims <- list(obs_id = obs_dims[1:3])
-dims <- c(param_dims, obs_dims)
-
 tend <- c()
 ts <- list()
 
@@ -184,8 +176,7 @@ if (sample_prior)
                    working_folder = working_folder, target = "prior",
                    init = init, verbose = verbose)
     ## reading
-    res_prior <- bi_read(prior, dims = dims,
-                         vars = model$get_vars("param"),
+    res_prior <- bi_read(prior, vars = model$get_vars("param"),
                          verbose = verbose)
     saveRDS(res_prior, paste(output_file_name, "prior.rds", sep = "_"))
     prior_model_file <- paste(output_file_name, "prior.bi", sep = "_")
@@ -282,7 +273,7 @@ res <- bi_read(read = bi_wrapper, thin = thin,
                vars = c(final_model$get_vars("param"),
                         final_model$get_vars("noise"),
                         "loglikelihood", "logprior", "Z_h"),
-               dims = dims, verbose = verbose)
+               verbose = verbose)
 
 ## 25% burn-in
 burn <- num_samples * 0.25
