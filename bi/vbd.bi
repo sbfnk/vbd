@@ -69,6 +69,7 @@ model vbd {
   noise n_R_move[patch,disease]
 
   obs Cases[obs_id]
+  obs Sero[obs_id]
 
   sub parameter {
     p_d_inc_h[disease] ~ log_gaussian(mean = log(5.9), std = 0.07)
