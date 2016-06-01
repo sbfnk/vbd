@@ -2,7 +2,7 @@ library('docopt')
 
 "Script for fitting the dengue/zika model to the yap/fais data
 
-Usage: explore_posterior.r [options]
+Usage: dengue_zika_mcmc.r [options]
 
 Options:
   -o --output=<output.file>         output file name
@@ -86,7 +86,7 @@ dt_ts <- bind_rows(ts) %>%
     group_by(week, setting, disease) %>%
     summarize(value = sum(value)) %>%
     ungroup() %>%
-    mutate(obs_id = factor(paste(setting, disease, sep = "_"), obs_dims[["obs_id"]]),
+    mutate(obs_id = factor(paste(setting, disease, sep = "_")),
            day = week * 7) %>%
     arrange(day, obs_id) %>%
     select(day, obs_id, value) %>%
