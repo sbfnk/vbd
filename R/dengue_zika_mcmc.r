@@ -99,6 +99,7 @@ dt_ts <- bind_rows(ts) %>%
     arrange(day, obs_id) %>%
     select(day, obs_id, value) %>%
     complete(day, obs_id, fill = list(value = 0))
+sero <- data.frame(day = tend, obs_id = "yap_zika", value = 0.73)
 
 ## setting-specific adjustments
 init <- list(p_N_h = data.frame(setting = c("yap", "fais"), value = c(7391, 294)))
@@ -200,7 +201,7 @@ libbi_seed <- ceiling(runif(1, -1, .Machine$integer.max - 1))
 global_options[["seed"]] <- libbi_seed
 global_options[["nsamples"]] <- pre_samples
 bi_wrapper_prior <- libbi(model = model_prior, run = TRUE,
-                          obs = list(Cases = dt_ts), time_dim = "day", 
+                          obs = list(Cases = dt_ts, Sero = sero), time_dim = "day", 
                           global_options = global_options, client = "sample",
                           working_folder = working_folder,
                           init = init, verbose = verbose)
