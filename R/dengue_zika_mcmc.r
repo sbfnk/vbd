@@ -194,6 +194,7 @@ global_options[["nsamples"]] <- pre_samples
 bi_wrapper_prior <- libbi(model = model_prior, run = TRUE,
                           obs = list(Cases = dt_ts, Sero = sero), time_dim = "day", 
                           global_options = global_options, client = "sample",
+                          dims = list(disease = c("dengue", "zika")), 
                           working_folder = working_folder,
                           init = init, verbose = verbose)
 
@@ -419,7 +420,7 @@ if (sample_obs)
                         states = "Cases", params = NULL, noises = NULL,
                         trend = "mean", plot = FALSE)
 
-    p_obs_grid <- p_obs$states + facet_grid(~ obs_id)
+    p_obs_grid <- p_obs$states + facet_wrap(~ obs_id, scales = "free_y")
 
     ggsave(paste(output_file_name, "states.pdf", sep = "_"), p_obs_grid)
 
