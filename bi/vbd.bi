@@ -45,9 +45,8 @@ model vbd {
   state S_h[patch,setting,disease](has_output = 0) // susceptible
   state E_h[patch,setting,disease,delta_erlang_h](has_output = 0) // incubating
   state I_h[patch,setting,disease](has_output = 0) // infectious
-  state R_h[patch,setting,disease](has_output = 0) // recovered
+  state R_h[patch,setting,disease] // recovered
   state Z_h[patch,setting,disease] // incidence
-  state C_h[patch,setting,disease] // cumulative incidence
 
 
   // vectors
@@ -104,7 +103,6 @@ model vbd {
     E_h[patch,setting,disease,delta_erlang_h] <- 0
     I_h[patch,setting,disease] <- 0
     R_h[patch,setting,disease] <- 0
-    C_h[patch,setting,disease] <- 0
     Z_h[patch,setting,disease] <- 0
     E_m[patch,setting,disease,delta_erlang_m] <- 0
     S_m[patch,setting,disease] <- 1
@@ -150,13 +148,11 @@ model vbd {
       - (1 / p_d_inf_h[disease]) * I_h[patch,setting,disease]
 
       dR_h[patch,setting,disease]/dt =
+      + p_p_asymptomatic[disease] * e_delta_h * (1 / p_d_inc_h[disease]) * E_h[patch,setting,disease,e_delta_h - 1]
       + (1 / p_d_inf_h[disease]) * I_h[patch,setting,disease]
 
       dZ_h[patch,setting,disease]/dt =
       + (1 - p_p_asymptomatic[disease]) * e_delta_h * (1 / p_d_inc_h[disease]) * E_h[patch,setting,disease,e_delta_h - 1]
-
-      dC_h[patch,setting,disease]/dt =
-      + e_delta_h * (1 / p_d_inc_h[disease]) * E_h[patch,setting,disease,e_delta_h - 1]
 
       dS_m[patch,setting,disease]/dt =
       + r_births_m
@@ -183,7 +179,7 @@ model vbd {
 
   sub observation {
     Cases[obs_id] ~ truncated_gaussian(mean = p_rep[obs_id / 2] * (Z_h[0,obs_id % 2,obs_id / 2] + Z_h[1,obs_id % 2,obs_id / 2]), std = sqrt((p_rep[obs_id / 2] * (1 - p_rep[obs_id / 2]) * (Z_h[0,obs_id % 2,obs_id / 2] + Z_h[1,obs_id % 2,obs_id / 2]) + p_phi_add[obs_id / 2]) / p_phi_mult[obs_id / 2]), lower = 0)
-    Sero[obs_id] ~ gaussian(mean = C_h[0,obs_id % 2,obs_id / 2] / p_N_h[obs_id % 2], std = 0.09 / 3.98)
+    Sero[obs_id] ~ gaussian(mean = R_h[0,obs_id % 2,obs_id / 2] / p_N_h[obs_id % 2], std = 0.09 / 3.98)
   }
 
 }
