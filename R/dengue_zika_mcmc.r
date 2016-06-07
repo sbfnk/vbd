@@ -191,6 +191,10 @@ cat(date(), "Sampling from the posterior distribution with prior = proposal.\n")
 libbi_seed <- ceiling(runif(1, -1, .Machine$integer.max - 1))
 global_options[["seed"]] <- libbi_seed
 global_options[["nsamples"]] <- pre_samples
+if (length(num_particles) > 0)
+{
+  global_options[["nparticles"]] <- num_particles
+}
 bi_wrapper_prior <- libbi(model = model_prior, run = TRUE,
                           obs = list(Cases = dt_ts, Sero = sero), time_dim = "day", 
                           global_options = global_options, client = "sample",
@@ -198,13 +202,14 @@ bi_wrapper_prior <- libbi(model = model_prior, run = TRUE,
                           working_folder = working_folder,
                           init = init, verbose = verbose)
 
+cat(date(), "Running the stochastic model.\n")
+bi_wrapper_adapted <- adapt_mcmc(bi_wrapper_prior, min = 0, max = 1)
 if (stoch)
 {
-    bi_wrapper_stoch <- bi_wrapper_prior
+    bi_wrapper_stoch <- bi_wrapper_adapted
     if (length(num_particles) > 0)
     {
-        bi_wrapper_stoch$global_options[["nparticles"]] <- num_particles
-        bi_wrapper_prior <- bi_wrapper_stoch
+        bi_wrapper_adapted <- bi_wrapper_stoch
     } else
     {
         bi_wrapper_stoch$global_options[["nparticles"]] <- 1
@@ -218,20 +223,9 @@ if (stoch)
         bi_wrapper_particle_adapted <-
             adapt_particles(bi_wrapper_stoch,
                             min = bi_wrapper_stoch$global_options[["nparticles"]])
-        bi_wrapper_prior <- bi_wrapper_particle_adapted
+        bi_wrapper_adapted <- bi_wrapper_particle_adapted
     }
 }
-
-if (length(model_file) == 0)
-{
-    cat(date(), "Starting adaptation of the proposal distribution.\n")
-    bi_wrapper_adapted <-
-        adapt_mcmc(bi_wrapper_prior, min = 0.1, max = 0.5, max_iter = 10, scale = 2)
-} else
-{
-    bi_wrapper_adapted <- bi_wrapper_prior
-}
-
 
 if ("nparticles" %in% names(bi_wrapper_adapted$global_options))
 {
@@ -239,6 +233,13 @@ if ("nparticles" %in% names(bi_wrapper_adapted$global_options))
 } else
 {
     nparticles <- 1
+}
+
+if (length(model_file) == 0)
+{
+    cat(date(), "Adapting the proposal distribution.\n") 
+    bi_wrapper_adapted <-
+        adapt_mcmc(bi_wrapper_adapted, min = 0.1, max = 0.5, max_iter = 10, scale = 2)
 }
 
 cat(date(), "Sampling from the posterior distribution of the full model.\n")
