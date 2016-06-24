@@ -17,6 +17,7 @@ Options:
   -i --thin=<thin>                  thin
   -r --sample-prior                 sample prior
   -l --sample-observations          sample observations
+  -s --sero                         include sero data
   -m --model-file=<model.file>      given model file (means there will be no adaptation step)
   -k --keep                         keep working directory
   -f --force                        force overwrite
@@ -45,6 +46,7 @@ model_file <- opts[["model-file"]]
 stoch <- opts[["stochastic"]]
 sample_obs <- opts[["sample-observations"]]
 sample_prior <- opts[["sample-prior"]]
+sero <- opts[["sero"]]
 force <- opts[["force"]]
 keep <- opts[["keep"]]
 verbose <- opts[["verbose"]]
@@ -55,6 +57,7 @@ library('RBi')
 library('RBi.helpers')
 library('cowplot')
 library('stringi')
+library('truncnorm')
 
 code_dir <- path.expand("~/code/vbd/")
 data_dir <-  path.expand("~/Data/Zika/")
@@ -70,7 +73,7 @@ for (analysis in analyses)
     this_setting <- analysis[["setting"]]
     this_disease <- analysis[["disease"]]
     this_filename <-
-      paste(code_dir, "data", 
+      paste(code_dir, "data",
             paste(this_setting, this_disease, "data.rds", sep = "_"),
             sep = "/")
     this_ts <- readRDS(this_filename) %>%
@@ -86,12 +89,12 @@ dt_ts <- bind_rows(ts) %>%
     group_by(week, setting, disease) %>%
     summarize(value = sum(value)) %>%
     ungroup() %>%
-    mutate(obs_id = factor(paste(setting, disease, sep = "_")),
+    mutate(obs_id = factor(paste(setting, disease, sep = "_"),
+                           levels = c("yap_dengue", "fais_dengue", "yap_zika")),
            day = week * 7) %>%
     arrange(day, obs_id) %>%
     select(day, obs_id, value) %>%
     complete(day, obs_id, fill = list(value = 0))
-sero <- data.frame(day = tend, obs_id = "yap_zika", value = 0.73)
 
 ## setting-specific adjustments
 init <- list(p_N_h = data.frame(setting = c("yap", "fais"), value = c(7391, 294)))
@@ -130,6 +133,14 @@ for (comp in names(erlang))
     }
 }
 
+if (!stoch)
+{
+  model$fix(n_S_move = 0,
+            n_E_move = 0,
+            n_I_move = 0,
+            n_R_move = 0)
+}
+
 ## set output file name
 if (length(output_file_name) == 0)
 {
@@ -141,7 +152,7 @@ if (length(output_file_name) == 0)
             filebase <- paste(filebase, paste0(comp, opts[[erlang[comp]]]), sep = "_")
         }
     }
-    output_file_name <- paste0(data_dir, "/", filebase, "_", ifelse(stoch, "sto", "det"))
+    output_file_name <- paste0(data_dir, "/", filebase, "_", ifelse(stoch, "sto", "det"), ifelse(sero, "_sero", ""))
 }
 cat("Output: ",  output_file_name, "\n")
 
@@ -195,15 +206,20 @@ if (length(num_particles) > 0)
 {
   global_options[["nparticles"]] <- num_particles
 }
+obs <- list(Cases = dt_ts)
+if (sero)
+{
+    obs[["Sero"]] <- data.frame(day = tend, obs_id = "yap_zika", value = 0.73)
+}
 bi_wrapper_prior <- libbi(model = model_prior, run = TRUE,
-                          obs = list(Cases = dt_ts, Sero = sero), time_dim = "day", 
-                          global_options = global_options, client = "sample",
-                          dims = list(disease = c("dengue", "zika")), 
+                          obs = obs, global_options = global_options, client = "sample",
+                          dims = list(disease = c("dengue", "zika")),
                           working_folder = working_folder,
                           init = init, verbose = verbose)
 
-cat(date(), "Running the stochastic model.\n")
+cat(date(), "Running the model.\n")
 bi_wrapper_adapted <- adapt_mcmc(bi_wrapper_prior, min = 0, max = 1)
+
 if (stoch)
 {
     bi_wrapper_stoch <- bi_wrapper_adapted
@@ -329,15 +345,15 @@ l <- lapply(names(res), function(x) {
 })
 
 params <- bind_rows(l)
-if ("nr" %in% names(params))
+if ("time" %in% names(params))
 {
     params <- params %>%
-        filter(is.na(nr)) %>%
-        select(-nr)
+        filter(is.na(time)) %>%
+        select(-time)
 }
 
 params_disease <-
-    lapply(levels(factor(params$disease)),
+  lapply(levels(factor(params$disease)),
            function(x) { params %>% filter(is.na(disease)) %>% mutate(disease = x) })
 
 params_all <-
@@ -383,7 +399,7 @@ if (sample_obs)
 {
     states <- bind_rows(l) %>%
         filter(state == "Z_h") %>%
-        group_by(nr, disease, np, state, setting) %>%
+        group_by(time, disease, np, state, setting) %>%
         summarise(value = sum(value)) %>%
         ungroup() %>%
         spread(state, value)
@@ -399,7 +415,9 @@ if (sample_obs)
         filter(obs_id != "fais_zika")
 
     res$Cases <- states %>%
-        mutate(value = rnorm(nrow(states), p_rep * Z_h, sqrt((p_rep * (1 - p_rep) * Z_h + p_phi_add) / p_phi_mult)))
+        mutate(value = rtruncnorm(n = nrow(states), a = 0,
+                                  mean = p_rep * Z_h,
+                                  sd = sqrt((p_rep * (1 - p_rep) * Z_h + p_phi_add) / p_phi_mult)))
 
     ## manipulate data to match sampled observations
     data <- dt_ts %>%
@@ -414,6 +432,12 @@ if (sample_obs)
         .[["time"]]
     data <- data %>%
         filter(time >= first_obs & time <= last_obs)
+
+    ## p_obs <- plot_libbi(read = res, model = final_model, data = data,
+    ##                     density_args = list(adjust = 2), burn = burn,
+    ##                     extra.aes = list(color = "obs_id"),
+    ##                     states = "Cases", params = NULL, noises = NULL,
+    ##                     trend = "mean", plot = FALSE)
 
     p_obs <- plot_libbi(read = res, model = final_model, data = data,
                         density_args = list(adjust = 2), burn = burn,
