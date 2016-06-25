@@ -289,11 +289,7 @@ cat(bi_wrapper$result$command, file = command_file)
 
 final_model <- bi_wrapper$model
 
-res <- bi_read(read = bi_wrapper, thin = thin,
-               vars = c(final_model$get_vars("param"),
-                        final_model$get_vars("noise"),
-                        "loglikelihood", "logprior", "Z_h"),
-               verbose = verbose)
+res <- bi_read(read = bi_wrapper, thin = thin, verbose = verbose)
 
 ## 25% burn-in
 burn <- num_samples * 0.25
@@ -318,6 +314,10 @@ if (sample_prior)
 p_param <- do.call(plot_libbi, plot_args)
 saveRDS(p_param$data, paste0(output_file_name, "_param_fits.rds"))
 
+if (!is.null(p_param[["states"]]))
+{
+    ggsave(paste(output_file_name, "states.pdf", sep = "_"), p_param$states)
+}
 if (!is.null(p_param[["densities"]]))
 {
     ggsave(paste(output_file_name, "densities.pdf", sep = "_"), p_param$densities)
@@ -448,7 +448,7 @@ if (sample_obs)
 
     p_obs_grid <- p_obs$states + facet_wrap(~ obs_id, scales = "free_y")
 
-    ggsave(paste(output_file_name, "states.pdf", sep = "_"), p_obs_grid)
+    ggsave(paste(output_file_name, "obs.pdf", sep = "_"), p_obs_grid)
 
     saveRDS(p_obs$data, paste0(output_file_name, "_obs_fits.rds"))
 }
