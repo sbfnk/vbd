@@ -186,6 +186,7 @@ if (sample_prior)
     prior <- libbi(model = model, run = TRUE,
                    global_options = global_options, client = "sample",
                    working_folder = working_folder, target = "prior",
+                   dims = list(disease = c("dengue", "zika")),
                    init = init, verbose = verbose)
     ## reading
     res_prior <- bi_read(prior, vars = model$get_vars("param"),
