@@ -93,8 +93,8 @@ dt_ts <- bind_rows(ts) %>%
                            levels = c("yap_dengue", "fais_dengue", "yap_zika")),
            day = week * 7) %>%
     arrange(day, obs_id) %>%
-    select(day, obs_id, value) %>%
-    complete(day, obs_id, fill = list(value = 0))
+    select(day, obs_id, value)##  %>%
+    ## complete(day, obs_id, fill = list(value = 0))
 
 ## setting-specific adjustments
 init <- list(p_N_h = data.frame(setting = c("yap", "fais"), value = c(7391, 294)))
