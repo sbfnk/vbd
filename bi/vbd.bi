@@ -39,7 +39,7 @@ model vbd {
   param p_t_start[setting,disease]
 
   param p_phi_mult[disease]
-  param p_phi_add[disease]
+  // param p_phi_add[disease]
 
   // humans
   state S_h[patch,setting,disease](has_output = 0) // susceptible
@@ -88,7 +88,7 @@ model vbd {
     p_t_start[setting,disease] ~ uniform(lower = 0, upper = 64)
 
     p_phi_mult[disease] ~ uniform(lower = 0, upper = 1)
-    p_phi_add[disease] ~ uniform(lower = 1, upper = 5)
+    // p_phi_add[disease] ~ uniform(lower = 0, upper = 5)
 
     p_initial_susceptible ~ uniform(lower = 0, upper = 1)
 
@@ -178,7 +178,8 @@ model vbd {
   }
 
   sub observation {
-    Cases[obs_id] ~ truncated_gaussian(mean = p_rep[obs_id / 2] * (Z_h[0,obs_id % 2,obs_id / 2] + Z_h[1,obs_id % 2,obs_id / 2]), std = sqrt((p_rep[obs_id / 2] * (1 - p_rep[obs_id / 2]) * (Z_h[0,obs_id % 2,obs_id / 2] + Z_h[1,obs_id % 2,obs_id / 2]) + p_phi_add[obs_id / 2]) / p_phi_mult[obs_id / 2]), lower = 0)
+    // Cases[obs_id] ~ truncated_gaussian(mean = p_rep[obs_id / 2] * (Z_h[0,obs_id % 2,obs_id / 2] + Z_h[1,obs_id % 2,obs_id / 2]), std = sqrt((p_rep[obs_id / 2] * (1 - p_rep[obs_id / 2]) * (Z_h[0,obs_id % 2,obs_id / 2] + Z_h[1,obs_id % 2,obs_id / 2]) + p_phi_add[obs_id / 2]) / p_phi_mult[obs_id / 2]), lower = 0)
+    Cases[obs_id] ~ truncated_gaussian(mean = p_rep[obs_id / 2] * (Z_h[0,obs_id % 2,obs_id / 2] + Z_h[1,obs_id % 2,obs_id / 2]), std = sqrt((p_rep[obs_id / 2] * (1 - p_rep[obs_id / 2]) * (Z_h[0,obs_id % 2,obs_id / 2] + Z_h[1,obs_id % 2,obs_id / 2]) + 1) / p_phi_mult[obs_id / 2]), lower = 0)
     Sero[obs_id] ~ gaussian(mean = (R_h[0,obs_id % 2,obs_id / 2] + R_h[1,obs_id % 2,obs_id / 2]) / p_N_h[obs_id % 2], std = 0.09 / 3.98)
   }
 
