@@ -142,7 +142,14 @@ if (!move)
   model$fix(n_S_move = 0,
             n_E_move = 0,
             n_I_move = 0,
-            n_R_move = 0)
+            n_R_move = 0,
+	    S_h_move = 0,
+	    E_h_move = 0,
+	    I_h_move = 0,
+	    R_h_move = 0,
+	    p_p_patch_yap = 1,
+	    p_lr_patch_yap = 0,
+	    e_patch = 1)
 }
 
 if (!beta)

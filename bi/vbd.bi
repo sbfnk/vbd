@@ -58,17 +58,17 @@ model vbd {
   state next_obs[setting,disease](has_output = 0) // time of next observation
   state started[setting,disease](has_output = 0) // outbreak start switch
 
-  state S_h_move[patch,disease]
-  state E_h_move[patch,disease,delta_erlang_h]
-  state I_h_move[patch,disease]
-  state R_h_move[patch,disease]
+  state S_h_move[patch,disease](has_output = 0)
+  state E_h_move[patch,disease,delta_erlang_h](has_output = 0)
+  state I_h_move[patch,disease](has_output = 0)
+  state R_h_move[patch,disease](has_output = 0)
 
-  noise n_S_move[patch,disease]
-  noise n_E_move[patch,disease,delta_erlang_h]
-  noise n_I_move[patch,disease]
-  noise n_R_move[patch,disease]
+  noise n_S_move[patch,disease](has_output = 0)
+  noise n_E_move[patch,disease,delta_erlang_h](has_output = 0)
+  noise n_I_move[patch,disease](has_output = 0)
+  noise n_R_move[patch,disease](has_output = 0)
 
-  noise n_transmission[setting,disease]
+  noise n_transmission[setting,disease](has_output = 0)
 
   obs Cases[obs_id]
   obs Sero[obs_id]
