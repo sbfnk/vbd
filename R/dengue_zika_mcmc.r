@@ -13,7 +13,8 @@ Options:
   -t --threads=<num.threads>        number of threads
   -w --erlang_v=<erlang.v>          number of Erlang compartments in the vector
   -u --erlang_h=<erlang.h>          number of Erlang compartments in the human
-  -a --stochastic                   include environmental stochasticity
+  -b --beta                         include stochastic beta
+  -a --movement                     include movement
   -i --thin=<thin>                  thin
   -r --sample-prior                 sample prior
   -l --sample-observations          sample observations
@@ -43,13 +44,16 @@ seed <- as.integer(opts[["seed"]])
 thin <- as.integer(opts[["thin"]])
 output_file_name <- opts[["output"]]
 model_file <- opts[["model-file"]]
-stoch <- opts[["stochastic"]]
+beta <- opts[["beta"]]
+move <- opts[["movement"]]
 sample_obs <- opts[["sample-observations"]]
 sample_prior <- opts[["sample-prior"]]
 sero <- opts[["sero"]]
 force <- opts[["force"]]
 keep <- opts[["keep"]]
 verbose <- opts[["verbose"]]
+
+stoch <- move || beta
 
 library('dplyr')
 library('tidyr')
@@ -133,13 +137,20 @@ for (comp in names(erlang))
     }
 }
 
-if (!stoch)
+if (!move)
 {
   model$fix(n_S_move = 0,
             n_E_move = 0,
             n_I_move = 0,
             n_R_move = 0)
 }
+
+if (!beta)
+{
+  model$fix(n_transmission = 0)
+}
+
+model$fix(p_tau = 1)
 
 ## set output file name
 if (length(output_file_name) == 0)
@@ -152,7 +163,7 @@ if (length(output_file_name) == 0)
             filebase <- paste(filebase, paste0(comp, opts[[erlang[comp]]]), sep = "_")
         }
     }
-    output_file_name <- paste0(data_dir, "/", filebase, "_", ifelse(stoch, "sto", "det"), ifelse(sero, "_sero", ""))
+    output_file_name <- paste0(data_dir, "/", filebase, ifelse(move, "_move", ""), ifelse(beta, "_beta", ""), ifelse(sero, "_sero", ""))
 }
 cat("Output: ",  output_file_name, "\n")
 
@@ -206,6 +217,14 @@ global_options[["nsamples"]] <- pre_samples
 if (length(num_particles) > 0)
 {
   global_options[["nparticles"]] <- num_particles
+} else
+{
+  ## number of data points as number of particles
+  if (stoch) 
+  {
+    ## global_options[["nparticles"]] <- 2**floor(log(nrow(dt_ts), 2))
+    global_options[["nparticles"]] <- 4
+  }
 }
 obs <- list(Cases = dt_ts)
 if (sero)
@@ -229,13 +248,10 @@ if (stoch)
         bi_wrapper_adapted <- bi_wrapper_stoch
     } else
     {
-        bi_wrapper_stoch$global_options[["nparticles"]] <- 1
-        ## bi_wrapper_stoch$run(nsamples = pre_samples, init = bi_wrapper_prior,
-        ##                      add_options = list("init-np" = pre_samples - 1))
+        ## bi_wrapper_stoch$global_options[["nparticles"]] <- 1
+        bi_wrapper_stoch$run(nsamples = pre_samples, init = bi_wrapper_prior,
+                             add_options = list("init-np" = pre_samples - 1))
 
-        ## number of data points as number of particles
-        ## bi_wrapper_stoch$global_options[["nparticles"]] <-
-        ##     2**ceiling(log(nrow(dt_ts), 2))
         cat(date(), "Starting adaptation of the number of particles.\n")
         bi_wrapper_particle_adapted <-
             adapt_particles(bi_wrapper_stoch,
@@ -418,7 +434,7 @@ if (sample_obs)
     res$Cases <- states %>%
         mutate(value = rtruncnorm(n = nrow(states), a = 0,
                                   mean = p_rep * Z_h,
-                                  sd = sqrt((p_rep * (1 - p_rep) * Z_h + p_phi_add) / p_phi_mult)))
+                                  sd = sqrt((p_rep * (1 - p_rep) * Z_h + 1) / p_phi_mult)))
 
     ## manipulate data to match sampled observations
     data <- dt_ts %>%

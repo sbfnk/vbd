@@ -21,6 +21,10 @@ model vbd {
   param p_d_inf_h[disease]
   param p_d_life_m
 
+  param p_tau[setting]
+
+  param p_vol_transmission[setting]
+
   param p_p_asymptomatic[disease] // proportion of infections that are asymptomatic
   param p_lm[setting] // number of female vectors per human (log base 10)
   param p_N_h[setting]
@@ -31,10 +35,8 @@ model vbd {
   param p_b_h[disease] // probability that a bite on a human leads to infection
   param p_b_m[disease] // probability that a bite on a vector leads to infection
 
-  param p_r_patch_yap // importation rate between two patches
+  param p_lr_patch_yap // importation rate between two patches
   param p_p_patch_yap // proportion of individuals in each patch
-
-  param p_tau[setting]
 
   param p_t_start[setting,disease]
 
@@ -47,7 +49,6 @@ model vbd {
   state I_h[patch,setting,disease](has_output = 0) // infectious
   state R_h[patch,setting,disease] // recovered
   state Z_h[patch,setting,disease] // incidence
-
 
   // vectors
   state S_m[patch,setting,disease](has_output = 0) // susceptible
@@ -67,6 +68,8 @@ model vbd {
   noise n_I_move[patch,disease]
   noise n_R_move[patch,disease]
 
+  noise n_transmission[setting,disease]
+
   obs Cases[obs_id]
   obs Sero[obs_id]
 
@@ -74,7 +77,7 @@ model vbd {
     p_d_inc_h[disease] ~ log_gaussian(mean = log(5.9), std = 0.07)
     p_d_inc_m[disease] ~ log_gaussian(mean = log(9.8), std = 0.36)
 
-    p_d_life_m ~ uniform(lower = 4, upper = 30)
+    p_d_life_m ~ uniform(lower = 14, upper = 30)
     p_d_inf_h[disease] ~ truncated_gaussian(mean = 4.5, std = 1.78, lower = 0)
 
     p_p_asymptomatic[disease] ~ uniform(lower = 0, upper = 1)
@@ -92,10 +95,10 @@ model vbd {
 
     p_initial_susceptible ~ uniform(lower = 0, upper = 1)
 
-    p_tau[setting] ~ uniform(lower = 0.3, upper = 1)
-
-    p_r_patch_yap ~ uniform(lower = 0, upper = 0.1)
+    p_lr_patch_yap ~ uniform(lower = -5, upper = -3)
     p_p_patch_yap ~ uniform(lower = 0, upper = 1)
+
+    p_vol_transmission[setting] ~ uniform(lower = 0, upper = 3)
   }
 
   sub initial {
@@ -120,15 +123,17 @@ model vbd {
     next_obs[setting,disease] <- (t_next_obs > next_obs[setting,disease] ? t_next_obs : next_obs[setting,disease])
 
     // movement on yap
-    n_S_move[patch,disease] ~ gaussian(p_r_patch_yap * S_h[patch,0,disease] / (patch == 0 ? p_p_patch_yap : 1 - p_p_patch_yap), sqrt(p_r_patch_yap * (1 - p_r_patch_yap) * S_h[patch,0,disease] / (patch == 0 ? p_p_patch_yap : 1 - p_p_patch_yap)))
-    n_E_move[patch,disease,delta_erlang_h] ~ gaussian(p_r_patch_yap * E_h[patch,0,disease,delta_erlang_h] / (patch == 0 ? p_p_patch_yap : 1 - p_p_patch_yap), sqrt(p_r_patch_yap * (1 - p_r_patch_yap) * E_h[patch,0,disease,delta_erlang_h] / (patch == 0 ? p_p_patch_yap : 1 - p_p_patch_yap)))
-    n_I_move[patch,disease] ~ gaussian(p_r_patch_yap * I_h[patch,0,disease] / (patch == 0 ? p_p_patch_yap : 1 - p_p_patch_yap), sqrt(p_r_patch_yap * (1 - p_r_patch_yap) * I_h[patch,0,disease] / (patch == 0 ? p_p_patch_yap : 1 - p_p_patch_yap)))
-    n_R_move[patch,disease] ~ gaussian(p_r_patch_yap * R_h[patch,0,disease] / (patch == 0 ? p_p_patch_yap : 1 - p_p_patch_yap), sqrt(p_r_patch_yap * (1 - p_r_patch_yap) * R_h[patch,0,disease] / (patch == 0 ? p_p_patch_yap : 1 - p_p_patch_yap)))
+    n_S_move[patch,disease] ~ gaussian(pow(10, p_lr_patch_yap) * S_h[patch,0,disease] / (patch == 0 ? p_p_patch_yap : 1 - p_p_patch_yap), sqrt(pow(10, p_lr_patch_yap) * S_h[patch,0,disease] / (patch == 0 ? p_p_patch_yap : 1 - p_p_patch_yap)))
+    n_E_move[patch,disease,delta_erlang_h] ~ gaussian(pow(10, p_lr_patch_yap) * E_h[patch,0,disease,delta_erlang_h] / (patch == 0 ? p_p_patch_yap : 1 - p_p_patch_yap), sqrt(pow(10, p_lr_patch_yap) * E_h[patch,0,disease,delta_erlang_h] / (patch == 0 ? p_p_patch_yap : 1 - p_p_patch_yap)))
+    n_I_move[patch,disease] ~ gaussian(pow(10, p_lr_patch_yap) * I_h[patch,0,disease] / (patch == 0 ? p_p_patch_yap : 1 - p_p_patch_yap), sqrt(pow(10, p_lr_patch_yap) * I_h[patch,0,disease] / (patch == 0 ? p_p_patch_yap : 1 - p_p_patch_yap)))
+    n_R_move[patch,disease] ~ gaussian(pow(10, p_lr_patch_yap) * R_h[patch,0,disease] / (patch == 0 ? p_p_patch_yap : 1 - p_p_patch_yap), sqrt(pow(10, p_lr_patch_yap) * R_h[patch,0,disease] / (patch == 0 ? p_p_patch_yap : 1 - p_p_patch_yap)))
 
     S_h_move[patch,disease] <- - max(0, min(floor(n_S_move[patch,disease] + 0.5), S_h[patch,0,disease])) + max(0, min(floor(n_S_move[1 - patch,disease] + 0.5), S_h[1 - patch,0,disease]))
     E_h_move[patch,disease,delta_erlang_h] <- - max(0, min(floor(n_E_move[patch,disease,delta_erlang_h] + 0.5), E_h[patch,0,disease,delta_erlang_h])) + max(0, min(floor(n_E_move[1 - patch,disease,delta_erlang_h] + 0.5), E_h[1 - patch,0,disease,delta_erlang_h]))
     I_h_move[patch,disease] <- - max(0, min(floor(n_I_move[patch,disease] + 0.5), I_h[patch,0,disease])) + max(0, min(floor(n_I_move[1 - patch,disease] + 0.5), I_h[1 - patch,0,disease]))
     R_h_move[patch,disease] <- - max(0, min(floor(n_R_move[patch,disease] + 0.5), R_h[patch,0,disease])) + max(0, min(floor(n_R_move[1 - patch,disease] + 0.5), R_h[1 - patch,0,disease]))
+
+    n_transmission[setting,disease] ~ gamma(shape = pow(10, p_vol_transmission[setting]), scale = 1 / pow(10, p_vol_transmission[setting]))
 
     S_h[patch,0,disease] <- S_h[patch,0,disease] + S_h_move[patch,disease]
     E_h[patch,0,disease,delta_erlang_h] <- E_h[patch,0,disease,delta_erlang_h] + E_h_move[patch,disease,delta_erlang_h]
@@ -137,10 +142,9 @@ model vbd {
 
     ode {
       dS_h[patch,setting,disease]/dt =
-      - p_tau[setting] * p_b_h[disease] * pow(10, p_lm[setting])* I_m[patch,setting,disease] * S_h[patch,setting,disease]
-
+      - (p_tau[setting] * p_b_h[disease] * pow(10, p_lm[setting])) * I_m[patch,setting,disease] * S_h[patch,setting,disease] * n_transmission[setting,disease]
       dE_h[patch,setting,disease,delta_erlang_h]/dt =
-      + (delta_erlang_h == 0 ? p_tau[setting] * p_b_h[disease] * pow(10, p_lm[setting])* I_m[patch,setting,disease] * S_h[patch,setting,disease] : e_delta_h * (1 / p_d_inc_h[disease]) * E_h[patch,setting,disease,delta_erlang_h - 1])
+      + (delta_erlang_h == 0 ? (p_tau[setting] * p_b_h[disease] * pow(10, p_lm[setting])) * I_m[patch,setting,disease] * S_h[patch,setting,disease] * n_transmission[setting,disease] : e_delta_h * (1 / p_d_inc_h[disease]) * E_h[patch,setting,disease,delta_erlang_h - 1])
       - e_delta_h * (1 / p_d_inc_h[disease]) * E_h[patch,setting,disease,delta_erlang_h]
 
       dI_h[patch,setting,disease]/dt =
