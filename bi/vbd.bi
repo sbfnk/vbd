@@ -68,7 +68,7 @@ model vbd {
   noise n_I_move[patch,disease](has_output = 0)
   noise n_R_move[patch,disease](has_output = 0)
 
-  noise n_transmission[setting,disease]
+  noise n_transmission[setting,disease](has_output = 0)
 
   obs Cases[obs_id]
   obs Sero[obs_id]
