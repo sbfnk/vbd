@@ -81,24 +81,23 @@ for (analysis in analyses)
             paste(this_setting, this_disease, "data.rds", sep = "_"),
             sep = "/")
     this_ts <- readRDS(this_filename) %>%
-        mutate(setting = this_setting, disease = this_disease)
+      mutate(setting = this_setting, disease = this_disease,
+             week = ceiling(nr / 7))
     ts <- c(ts, list(this_ts))
     ## set end time
-    tend <- c(tend, this_ts %>% select(nr) %>% max)
+    tend <- c(tend, this_ts %>% select(week) %>% max)
 }
 
 tend <- max(tend)
 dt_ts <- bind_rows(ts) %>%
-    mutate(week = (nr %/% 7)) %>%
     group_by(week, setting, disease) %>%
     summarize(value = sum(value)) %>%
     ungroup() %>%
     mutate(obs_id = factor(paste(setting, disease, sep = "_"),
-                           levels = c("yap_dengue", "fais_dengue", "yap_zika")),
-           day = week * 7) %>%
-    arrange(day, obs_id) %>%
-    select(day, obs_id, value)##  %>%
-    ## complete(day, obs_id, fill = list(value = 0))
+                           levels = c("yap_dengue", "fais_dengue", "yap_zika"))) %>% 
+    arrange(week, obs_id) %>%
+    select(week, obs_id, value)##  %>%
+    ## complete(week, obs_id, fill = list(value = 0))
 
 ## setting-specific adjustments
 init <- list(p_N_h = data.frame(setting = c("yap", "fais"), value = c(7391, 294)))
@@ -150,7 +149,7 @@ if (!beta)
   model$fix(n_transmission = 0)
 }
 
-model$fix(p_tau = 1)
+model$fix(p_tau = 7)
 
 ## set output file name
 if (length(output_file_name) == 0)
@@ -229,7 +228,7 @@ if (length(num_particles) > 0)
 obs <- list(Cases = dt_ts)
 if (sero)
 {
-    obs[["Sero"]] <- data.frame(day = tend, obs_id = "yap_zika", value = 0.73)
+    obs[["Sero"]] <- data.frame(week = tend, obs_id = "yap_zika", value = 0.73)
 }
 bi_wrapper_prior <- libbi(model = model_prior, run = TRUE,
                           obs = obs, global_options = global_options, client = "sample",
@@ -389,7 +388,7 @@ params_all <-
 
 r0 <- params_all %>%
     spread(state, value) %>%
-    mutate(R0 = p_d_life_m * p_tau *
+    mutate(R0 = p_d_life_m * 
                sqrt(p_b_h * p_b_m * 10**(p_lm) * p_d_inf_h /
                     (p_d_life_m + p_d_inc_m))) %>%
     gather(state, value, loglikelihood:R0) %>%
@@ -438,7 +437,7 @@ if (sample_obs)
 
     ## manipulate data to match sampled observations
     data <- dt_ts %>%
-        mutate(time = day)
+        mutate(time = week)
     first_obs <- data %>%
         filter(value > 0) %>%
         slice(which.min(time)) %>%

@@ -58,15 +58,15 @@ model vbd {
   state next_obs[setting,disease](has_output = 0) // time of next observation
   state started[setting,disease](has_output = 0) // outbreak start switch
 
-  state S_h_move[patch,disease]
-  state E_h_move[patch,disease,delta_erlang_h]
-  state I_h_move[patch,disease]
-  state R_h_move[patch,disease]
+  state S_h_move[patch,disease](has_output = 0)
+  state E_h_move[patch,disease,delta_erlang_h](has_output = 0)
+  state I_h_move[patch,disease](has_output = 0)
+  state R_h_move[patch,disease](has_output = 0)
 
-  noise n_S_move[patch,disease]
-  noise n_E_move[patch,disease,delta_erlang_h]
-  noise n_I_move[patch,disease]
-  noise n_R_move[patch,disease]
+  noise n_S_move[patch,disease](has_output = 0)
+  noise n_E_move[patch,disease,delta_erlang_h](has_output = 0)
+  noise n_I_move[patch,disease](has_output = 0)
+  noise n_R_move[patch,disease](has_output = 0)
 
   noise n_transmission[setting,disease]
 
@@ -74,11 +74,11 @@ model vbd {
   obs Sero[obs_id]
 
   sub parameter {
-    p_d_inc_h[disease] ~ log_gaussian(mean = log(5.9), std = 0.07)
-    p_d_inc_m[disease] ~ log_gaussian(mean = log(9.8), std = 0.36)
+    p_d_inc_h[disease] ~ log_gaussian(mean = log(5.9/7), std = 0.07/7)
+    p_d_inc_m[disease] ~ log_gaussian(mean = log(9.8/7), std = 0.36/7)
 
-    p_d_life_m ~ uniform(lower = 14, upper = 30)
-    p_d_inf_h[disease] ~ truncated_gaussian(mean = 4.5, std = 1.78, lower = 0)
+    p_d_life_m ~ uniform(lower = 2, upper = 4)
+    p_d_inf_h[disease] ~ truncated_gaussian(mean = 4.5/7, std = 1.78/7, lower = 0)
 
     p_p_asymptomatic[disease] ~ uniform(lower = 0, upper = 1)
 
@@ -88,7 +88,7 @@ model vbd {
     p_b_m[disease] ~ uniform(lower = 0, upper = 1)
 
     p_lm[setting] ~ uniform(lower = -1, upper = 2)
-    p_t_start[setting,disease] ~ uniform(lower = 0, upper = 64)
+    p_t_start[setting,disease] ~ uniform(lower = 0, upper = 9)
 
     p_phi_mult[disease] ~ uniform(lower = 0, upper = 1)
     // p_phi_add[disease] ~ uniform(lower = 0, upper = 5)
