@@ -182,7 +182,6 @@ model vbd {
   }
 
   sub observation {
-    // Cases[obs_id] ~ truncated_gaussian(mean = p_rep[obs_id / 2] * (Z_h[0,obs_id % 2,obs_id / 2] + Z_h[1,obs_id % 2,obs_id / 2]), std = sqrt((p_rep[obs_id / 2] * (1 - p_rep[obs_id / 2]) * (Z_h[0,obs_id % 2,obs_id / 2] + Z_h[1,obs_id % 2,obs_id / 2]) + p_phi_add[obs_id / 2]) / p_phi_mult[obs_id / 2]), lower = 0)
     Cases[obs_id] ~ truncated_gaussian(mean = p_rep[obs_id / 2] * (Z_h[0,obs_id % 2,obs_id / 2] + Z_h[1,obs_id % 2,obs_id / 2]), std = sqrt((p_rep[obs_id / 2] * (1 - p_rep[obs_id / 2]) * (Z_h[0,obs_id % 2,obs_id / 2] + Z_h[1,obs_id % 2,obs_id / 2]) + 1) / p_phi_mult[obs_id / 2]), lower = 0)
     Sero[obs_id] ~ gaussian(mean = (R_h[0,obs_id % 2,obs_id / 2] + R_h[1,obs_id % 2,obs_id / 2]) / p_N_h[obs_id % 2], std = 0.09 / 3.98)
   }

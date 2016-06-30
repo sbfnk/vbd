@@ -96,7 +96,7 @@ dt_ts <- bind_rows(ts) %>%
     mutate(obs_id = factor(paste(setting, disease, sep = "_"),
                            levels = c("yap_dengue", "fais_dengue", "yap_zika"))) %>%
     arrange(week, obs_id) %>%
-    select(week, obs_id, value)##  %>%
+    select(week, obs_id, value) ## %>%
     ## complete(week, obs_id, fill = list(value = 0))
 
 ## setting-specific adjustments
@@ -142,13 +142,13 @@ if (!move)
             n_E_move = 0,
             n_I_move = 0,
             n_R_move = 0,
-	    S_h_move = 0,
-	    E_h_move = 0,
-	    I_h_move = 0,
-	    R_h_move = 0,
-	    p_p_patch_yap = 1,
-	    p_lr_patch_yap = 0,
-	    e_patch = 1)
+            S_h_move = 0,
+            E_h_move = 0,
+            I_h_move = 0,
+            R_h_move = 0,
+            p_p_patch_yap = 1,
+            p_lr_patch_yap = 0,
+            e_patch = 1)
 }
 
 if (!beta)
@@ -213,8 +213,6 @@ if (sample_prior)
     prior$model$write_model_file(prior_model_file)
 }
 
-model_prior <- model$propose_prior()
-
 ## sample prior with likelihoods
 cat(date(), "Sampling from the posterior distribution with prior = proposal.\n")
 libbi_seed <- ceiling(runif(1, -1, .Machine$integer.max - 1))
@@ -235,8 +233,10 @@ if (length(num_particles) > 0)
 obs <- list(Cases = dt_ts)
 if (sero)
 {
-    obs[["Sero"]] <- data.frame(week = tend, obs_id = "yap_zika", value = 0.73)
+    obs[["Sero"]] <- data.frame(week = dt_ts %>% filter(obs_id == "yap_zika") %>% .$week %>% max, obs_id = "yap_zika", value = 0.73)
 }
+
+model_prior <- model$propose_prior()
 bi_wrapper_prior <- libbi(model = model_prior, run = TRUE,
                           obs = obs, global_options = global_options, client = "sample",
                           dims = list(disease = c("dengue", "zika")),
@@ -279,6 +279,9 @@ if (length(model_file) == 0)
     cat(date(), "Adapting the proposal distribution.\n") 
     bi_wrapper_adapted <-
         adapt_mcmc(bi_wrapper_adapted, min = 0.1, max = 0.5, max_iter = 10, scale = 2)
+} else
+{
+    bi_wrapper_adapted$model <- model
 }
 
 cat(date(), "Sampling from the posterior distribution of the full model.\n")
@@ -306,6 +309,7 @@ if (length(model_file) == 0)
     model_file <- paste(output_file_name, "bi", sep = ".")
     bi_wrapper$model$write_model_file(model_file)
 }
+
 command_file <- paste(output_file_name, "cmd", sep = ".")
 cat(bi_wrapper$result$command, file = command_file)
 
