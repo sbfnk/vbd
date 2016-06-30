@@ -94,7 +94,7 @@ dt_ts <- bind_rows(ts) %>%
     summarize(value = sum(value)) %>%
     ungroup() %>%
     mutate(obs_id = factor(paste(setting, disease, sep = "_"),
-                           levels = c("yap_dengue", "fais_dengue", "yap_zika"))) %>% 
+                           levels = c("yap_dengue", "fais_dengue", "yap_zika"))) %>%
     arrange(week, obs_id) %>%
     select(week, obs_id, value)##  %>%
     ## complete(week, obs_id, fill = list(value = 0))
@@ -226,7 +226,7 @@ if (length(num_particles) > 0)
 } else
 {
   ## number of data points as number of particles
-  if (stoch) 
+  if (stoch)
   {
     ## global_options[["nparticles"]] <- 2**floor(log(nrow(dt_ts), 2))
     global_options[["nparticles"]] <- 4
@@ -429,8 +429,13 @@ if (sample_obs)
 
     rep_params <- params_all %>%
         filter(state %in% c("p_rep", "p_phi_mult", "p_phi_add")) %>%
-        spread(state, value) %>%
-        select(-patch)
+        spread(state, value)
+
+    if ("patch" %in% colnames(rep_params))
+    {
+        rep_params <- rep_params %>%
+            select(-patch)
+    }
 
     states <- states %>%
         left_join(rep_params, by = c("disease", "np", "setting")) %>%
