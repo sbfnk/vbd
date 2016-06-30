@@ -153,7 +153,7 @@ if (!move)
 
 if (!beta)
 {
-  model$fix(n_transmission = 0)
+  model$fix(n_transmission = 1)
 }
 
 model$fix(p_tau = 7)
