@@ -1,3 +1,7 @@
+############################################################################
+## Script for running libbi analysis                                      ##
+############################################################################
+
 library('docopt')
 
 "Script for fitting the dengue/zika model to the yap/fais data
@@ -13,7 +17,7 @@ Options:
   -t --threads=<num.threads>        number of threads
   -w --erlang_v=<erlang.v>          number of Erlang compartments in the vector
   -u --erlang_h=<erlang.h>          number of Erlang compartments in the human
-  -b --beta                         include stochastic beta
+  -d --beta                         include stochastic beta
   -a --movement                     include movement
   -i --thin=<thin>                  thin
   -r --sample-prior                 sample prior
@@ -23,6 +27,7 @@ Options:
   -k --keep                         keep working directory
   -f --force                        force overwrite
   -v --verbose                      be verbose
+  -b --parallel-number              parallel number
   -h --help                         show this message" -> doc
 
 opts <- docopt(doc)
@@ -52,6 +57,7 @@ sero <- opts[["sero"]]
 force <- opts[["force"]]
 keep <- opts[["keep"]]
 verbose <- opts[["verbose"]]
+par_nb <- as.integer(opts[["parallel-number"]])
 
 stoch <- move || beta
 
@@ -169,7 +175,7 @@ if (length(output_file_name) == 0)
             filebase <- paste(filebase, paste0(comp, opts[[erlang[comp]]]), sep = "_")
         }
     }
-    output_file_name <- paste0(data_dir, "/", filebase, ifelse(move, "_move", ""), ifelse(beta, "_beta", ""), ifelse(sero, "_sero", ""))
+    output_file_name <- paste0(data_dir, "/", filebase, ifelse(move, "_move", ""), ifelse(beta, "_beta", ""), ifelse(sero, "_sero", ""), ifelse(length(par_nb) == 0, "", paste0("_", par_nb)))
 }
 cat("Output: ",  output_file_name, "\n")
 
@@ -324,166 +330,171 @@ dic <- compute_DIC(read = res, burn = burn)
 saveRDS(list(dic = dic, nparticles = nparticles),
         file = paste0(output_file_name, "_dic.rds"))
 
-cat(date(), "Plotting.\n")
-
-## mark state in data set (for plotting)
-dt_ts <- dt_ts %>% mutate(state = "Cases")
-
-plot_args <- list(read = res, model = final_model,
-                  density_args = list(adjust = 2), burn = burn,
-                  extra.aes = c(color = "disease", linetype = "setting"),
-                  plot = FALSE)
-if (sample_prior)
+if (length(par_nb) == 0)
 {
-    plot_args[["prior"]] <- res_prior
-}
-p_param <- do.call(plot_libbi, plot_args)
-saveRDS(p_param$data, paste0(output_file_name, "_param_fits.rds"))
+    cat(date(), "Plotting.\n")
 
-if (!is.null(p_param[["states"]]))
-{
-    ggsave(paste(output_file_name, "states.pdf", sep = "_"), p_param$states)
-}
-if (!is.null(p_param[["densities"]]))
-{
-    ggsave(paste(output_file_name, "densities.pdf", sep = "_"), p_param$densities)
-}
-if (!is.null(p_param[["traces"]]))
-{
-    ggsave(paste(output_file_name, "traces.pdf", sep = "_"), p_param$traces)
-}
-if (!is.null(p_param[["correlations"]]))
-{
-    ggsave(paste(output_file_name, "correlations.pdf", sep = "_"),
-           p_param$correlations)
-}
-if (!is.null(p_param[["noises"]]))
-{
-    ggsave(paste(output_file_name, "noises.pdf", sep = "_"), p_param$noises)
-}
-if (!is.null(p_param[["likelihoods"]]))
-{
-    ggsave(paste(output_file_name, "likelihoods.pdf", sep = "_"), p_param$likelihoods)
-}
+    ## mark state in data set (for plotting)
+    dt_ts <- dt_ts %>% mutate(state = "Cases")
 
-cat(date(), "..parameters.\n")
-l <- lapply(names(res), function(x) {
-    res[[x]] %>% mutate(state = x)
-})
-
-params <- bind_rows(l)
-if ("time" %in% names(params))
-{
-    params <- params %>%
-        filter(is.na(time)) %>%
-        select(-time)
-}
-
-params_disease <-
-  lapply(levels(factor(params$disease)),
-           function(x) { params %>% filter(is.na(disease)) %>% mutate(disease = x) })
-
-params_all <-
-    rbind(params %>%
-          filter(!is.na(disease)),
-          bind_rows(params_disease))
-
-params_setting <-
-    lapply(levels(factor(params$setting)),
-           function(x) { params_all %>% filter(is.na(setting)) %>% mutate(setting = x) })
-
-params_all <-
-    rbind(params_all %>%
-          filter(!is.na(setting)),
-          bind_rows(params_setting))
-
-r0 <- params_all %>%
-    spread(state, value) %>%
-    mutate(R0 = p_d_life_m * 
-               sqrt(p_b_h * p_b_m * 10**(p_lm) * p_d_inf_h /
-                    (p_d_life_m + p_d_inc_m))) %>%
-    gather(state, value, loglikelihood:R0) %>%
-    filter(state == "R0")
-
-params <- rbind(params, r0) %>%
-    mutate(disease = ifelse(is.na(disease), "n/a", as.character(disease)),
-           setting = ifelse(is.na(setting), "n/a", as.character(setting)))
-
-saveRDS(params, paste0(output_file_name, "_params.rds"))
-
-cat(date(), "..R0.\n")
-p_R0 <- ggplot(params %>% filter(state == "R0") %>%
-               mutate(disease = stri_trans_totitle(disease),
-                      setting = stri_trans_totitle(setting)),
-               aes(x = value, color = disease, linetype = setting)) +
-    geom_line(stat = "density", lwd = 2, adjust = 2) +
-  scale_x_continuous(expression(R[0]), limits = c(0, 25)) +
-    scale_color_brewer(palette = "Set1") +
-  theme(legend.position = "top", legend.key.size=unit(1.5, "cm"))
-save_plot(paste(output_file_name, "r0.pdf", sep = "_"), p_R0)
-
-if (sample_obs)
-{
-    states <- bind_rows(l) %>%
-        filter(state == "Z_h") %>%
-        group_by(time, disease, np, state, setting) %>%
-        summarise(value = sum(value)) %>%
-        ungroup() %>%
-        spread(state, value)
-
-    rep_params <- params_all %>%
-        filter(state %in% c("p_rep", "p_phi_mult", "p_phi_add")) %>%
-        spread(state, value)
-
-    if ("patch" %in% colnames(rep_params))
+    plot_args <- list(read = res, model = final_model,
+                      density_args = list(adjust = 2), burn = burn,
+                      extra.aes = c(color = "disease", linetype = "setting"),
+                      plot = FALSE)
+    if (sample_prior)
     {
-        rep_params <- rep_params %>%
-            select(-patch)
+        plot_args[["prior"]] <- res_prior
+    }
+    p_param <- do.call(plot_libbi, plot_args)
+    saveRDS(p_param$data, paste0(output_file_name, "_param_fits.rds"))
+
+    if (!is.null(p_param[["states"]]))
+    {
+        ggsave(paste(output_file_name, "states.pdf", sep = "_"), p_param$states)
+    }
+    if (!is.null(p_param[["densities"]]))
+    {
+        ggsave(paste(output_file_name, "densities.pdf", sep = "_"), p_param$densities)
+    }
+    if (!is.null(p_param[["traces"]]))
+    {
+        ggsave(paste(output_file_name, "traces.pdf", sep = "_"), p_param$traces)
+    }
+    if (!is.null(p_param[["correlations"]]))
+    {
+        ggsave(paste(output_file_name, "correlations.pdf", sep = "_"),
+               p_param$correlations)
+    }
+    if (!is.null(p_param[["noises"]]))
+    {
+        ggsave(paste(output_file_name, "noises.pdf", sep = "_"), p_param$noises)
+    }
+    if (!is.null(p_param[["likelihoods"]]))
+    {
+        ggsave(paste(output_file_name, "likelihoods.pdf", sep = "_"), p_param$likelihoods)
     }
 
-    states <- states %>%
-        left_join(rep_params, by = c("disease", "np", "setting")) %>%
-        mutate(obs_id = paste(setting, disease, sep = "_")) %>%
-        filter(obs_id != "fais_zika")
+    cat(date(), "..parameters.\n")
+    l <- lapply(names(res), function(x) {
+        res[[x]] %>% mutate(state = x)
+    })
 
-    res$Cases <- states %>%
-        mutate(value = rtruncnorm(n = nrow(states), a = 0,
-                                  mean = p_rep * Z_h,
-                                  sd = sqrt((p_rep * (1 - p_rep) * Z_h + 1) / p_phi_mult)))
+    params <- bind_rows(l)
+    if ("time" %in% names(params))
+    {
+        params <- params %>%
+            filter(is.na(time)) %>%
+            select(-time)
+    }
 
-    ## manipulate data to match sampled observations
-    data <- dt_ts %>%
-        mutate(time = week)
-    first_obs <- data %>%
-        filter(value > 0) %>%
-        slice(which.min(time)) %>%
-        .[["time"]]
-    last_obs <- data %>%
-        filter(value > 0) %>%
-        slice(which.max(time)) %>%
-        .[["time"]]
-    data <- data %>%
-        filter(time >= first_obs & time <= last_obs)
+    params_disease <-
+        lapply(levels(factor(params$disease)),
+               function(x) { params %>% filter(is.na(disease)) %>% mutate(disease = x) })
 
-    ## p_obs <- plot_libbi(read = res, model = final_model, data = data,
-    ##                     density_args = list(adjust = 2), burn = burn,
-    ##                     extra.aes = list(color = "obs_id"),
-    ##                     states = "Cases", params = NULL, noises = NULL,
-    ##                     trend = "mean", plot = FALSE)
+    params_all <-
+        rbind(params %>%
+              filter(!is.na(disease)),
+              bind_rows(params_disease))
 
-    p_obs <- plot_libbi(read = res, model = final_model, data = data,
-                        density_args = list(adjust = 2), burn = burn,
-                        extra.aes = list(color = "obs_id"),
-                        states = "Cases", params = NULL, noises = NULL,
-                        trend = "mean", plot = FALSE)
+    params_setting <-
+        lapply(levels(factor(params$setting)),
+               function(x) { params_all %>% filter(is.na(setting)) %>% mutate(setting = x) })
 
-    p_obs_grid <- p_obs$states + facet_wrap(~ obs_id, scales = "free_y")
+    params_all <-
+        rbind(params_all %>%
+              filter(!is.na(setting)),
+              bind_rows(params_setting))
 
-    ggsave(paste(output_file_name, "obs.pdf", sep = "_"), p_obs_grid)
+    r0 <- params_all %>%
+        spread(state, value) %>%
+        mutate(R0 = p_d_life_m * 
+                   sqrt(p_b_h * p_b_m * 10**(p_lm) * p_d_inf_h /
+                        (p_d_life_m + p_d_inc_m))) %>%
+        gather(state, value, loglikelihood:R0) %>%
+        filter(state == "R0")
 
-    saveRDS(p_obs$data, paste0(output_file_name, "_obs_fits.rds"))
+    params <- rbind(params, r0) %>%
+        mutate(disease = ifelse(is.na(disease), "n/a", as.character(disease)),
+               setting = ifelse(is.na(setting), "n/a", as.character(setting)))
+
+    saveRDS(params, paste0(output_file_name, "_params.rds"))
+
+    cat(date(), "..R0.\n")
+    p_R0 <- ggplot(params %>% filter(state == "R0") %>%
+                   mutate(disease = stri_trans_totitle(disease),
+                          setting = stri_trans_totitle(setting)),
+                   aes(x = value, color = disease, linetype = setting)) +
+        geom_line(stat = "density", lwd = 2, adjust = 2) +
+        scale_x_continuous(expression(R[0]), limits = c(0, 25)) +
+        scale_color_brewer(palette = "Set1") +
+        theme(legend.position = "top", legend.key.size=unit(1.5, "cm"))
+    save_plot(paste(output_file_name, "r0.pdf", sep = "_"), p_R0)
+
+    if (sample_obs)
+    {
+        states <- bind_rows(l) %>%
+            filter(state == "Z_h") %>%
+            group_by(time, disease, np, state, setting) %>%
+            summarise(value = sum(value)) %>%
+            ungroup() %>%
+            spread(state, value)
+
+        rep_params <- params_all %>%
+            filter(state %in% c("p_rep", "p_phi_mult", "p_phi_add")) %>%
+            spread(state, value)
+
+        if ("patch" %in% colnames(rep_params))
+        {
+            rep_params <- rep_params %>%
+                select(-patch)
+        }
+
+        states <- states %>%
+            left_join(rep_params, by = c("disease", "np", "setting")) %>%
+            mutate(obs_id = paste(setting, disease, sep = "_")) %>%
+            filter(obs_id != "fais_zika")
+
+        res$Cases <- states %>%
+            mutate(value = rtruncnorm(n = nrow(states), a = 0,
+                                      mean = p_rep * Z_h,
+                                      sd = sqrt((p_rep * (1 - p_rep) * Z_h + 1) / p_phi_mult)))
+
+        ## manipulate data to match sampled observations
+        data <- dt_ts %>%
+            mutate(time = week)
+        first_obs <- data %>%
+            filter(value > 0) %>%
+            slice(which.min(time)) %>%
+            .[["time"]]
+        last_obs <- data %>%
+            filter(value > 0) %>%
+            slice(which.max(time)) %>%
+            .[["time"]]
+        data <- data %>%
+            filter(time >= first_obs & time <= last_obs)
+
+        ## p_obs <- plot_libbi(read = res, model = final_model, data = data,
+        ##                     density_args = list(adjust = 2), burn = burn,
+        ##                     extra.aes = list(color = "obs_id"),
+        ##                     states = "Cases", params = NULL, noises = NULL,
+        ##                     trend = "mean", plot = FALSE)
+
+        p_obs <- plot_libbi(read = res, model = final_model, data = data,
+                            density_args = list(adjust = 2), burn = burn,
+                            extra.aes = list(color = "obs_id"),
+                            states = "Cases", params = NULL, noises = NULL,
+                            trend = "mean", plot = FALSE)
+
+        p_obs_grid <- p_obs$states + facet_wrap(~ obs_id, scales = "free_y")
+
+        ggsave(paste(output_file_name, "obs.pdf", sep = "_"), p_obs_grid)
+
+        saveRDS(p_obs$data, paste0(output_file_name, "_obs_fits.rds"))
+    }
 }
 
 saveRDS(res, paste0(output_file_name, ".rds"))
 
 if (!keep) unlink(working_folder, recursive = TRUE)
+
+quit()
