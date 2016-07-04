@@ -3,11 +3,6 @@ model vbd {
   const e_delta_h = 1
   const e_delta_m = 1
 
-  const e_setting = 2 // 0 = yap, 1 = fais
-  const e_disease = 2 // 0 = dengue, 1 = zika
-  const e_obs_id = 3 // 0 = yap/dengue, 1 = fais/dengue, 2 = yap/zika
-                     // setting = obs_id % 2, disease = obs_id / 2
-
   dim delta_erlang_h(e_delta_h)
   dim delta_erlang_m(e_delta_m)
   dim setting(e_setting)
@@ -30,8 +25,8 @@ model vbd {
 
   param p_rep[disease] // reporting rate
 
-  param p_b_h[disease] // probability that a bite on a human leads to infection
   param p_b_m[disease] // probability that a bite on a vector leads to infection
+  param p_b_h[disease] // probability that a bite by a vector leads to infection
 
   param p_t_start[setting,disease]
 
@@ -52,6 +47,9 @@ model vbd {
 
   state next_obs[setting,disease](has_output = 0) // time of next observation
   state started[setting,disease](has_output = 0) // outbreak start switch
+
+  state R0_m_h[setting,disease] // human-to-mosquito
+  state R0_h_m[setting,disease] // mosquito-to-human
 
   noise n_transmission[setting,disease](has_output = 0)
 
@@ -104,13 +102,18 @@ model vbd {
     Z_h[setting,disease] <- (t_next_obs > next_obs[setting,disease] ? 0 : Z_h[setting,disease])
     next_obs[setting,disease] <- (t_next_obs > next_obs[setting,disease] ? t_next_obs : next_obs[setting,disease])
 
-    n_transmission[setting,disease] ~ gamma(shape = pow(10, p_vol_transmission[setting]), scale = 1 / pow(10, p_vol_transmission[setting]))
+    // n_transmission[setting,disease] ~ gamma(shape = pow(10, p_vol_transmission[setting]), scale = 1 / pow(10, p_vol_transmission[setting]))
+    n_transmission[setting,disease] ~ gaussian(mean = 0, std = p_vol_transmission[setting])
+
+    R0_m_h[setting,disease] <- min(0, p_tau[setting] * p_b_m[disease] * pow(p_d_life_m, 2) / (p_d_life_m + p_d_inc_m[disease]) + n_transmission[setting,disease])
+    R0_h_m[setting,disease] <- min(0, p_tau[setting] * p_b_h[disease] * pow(10, p_lm[setting]) * p_d_inf_h[disease] + n_transmission[setting,disease])
 
     ode {
       dS_h[setting,disease]/dt =
-      - (p_tau[setting] * p_b_h[disease] * pow(10, p_lm[setting])) * I_m[setting,disease] * S_h[setting,disease] * n_transmission[setting,disease]
+      - R0_h_m[setting,disease] / p_d_inf_h[disease] * I_m[setting,disease] * S_h[setting,disease]
+
       dE_h[setting,disease,delta_erlang_h]/dt =
-      + (delta_erlang_h == 0 ? (p_tau[setting] * p_b_h[disease] * pow(10, p_lm[setting])) * I_m[setting,disease] * S_h[setting,disease] * n_transmission[setting,disease] : e_delta_h * (1 / p_d_inc_h[disease]) * E_h[setting,disease,delta_erlang_h - 1])
+      + (delta_erlang_h == 0 ? R0_h_m[setting,disease] / p_d_inf_h[disease] * I_m[setting,disease] * S_h[setting,disease] : e_delta_h * (1 / p_d_inc_h[disease]) * E_h[setting,disease,delta_erlang_h - 1])
       - e_delta_h * (1 / p_d_inc_h[disease]) * E_h[setting,disease,delta_erlang_h]
 
       dI_h[setting,disease]/dt =
@@ -126,11 +129,11 @@ model vbd {
 
       dS_m[setting,disease]/dt =
       + r_births_m
-      - p_tau[setting] * p_b_m[disease] * I_h[setting,disease] / p_N_h[setting] * S_m[setting,disease] * n_transmission[setting,disease]
+      - R0_m_h[setting,disease] * (p_d_life_m + p_d_inc_m[disease]) / pow(p_d_life_m, 2) * I_h[setting,disease] / p_N_h[setting] * S_m[setting,disease]
       - r_death_m * S_m[setting,disease]
 
       dE_m[setting,disease,delta_erlang_m]/dt =
-      + (delta_erlang_m == 0 ? p_tau[setting] * p_b_m[disease] * I_h[setting,disease] / p_N_h[setting] * S_m[setting,disease] * n_transmission[setting,disease] : e_delta_m * (1 / p_d_inc_m[disease]) * E_m[setting,disease,delta_erlang_m - 1])
+      + (delta_erlang_m == 0 ? R0_m_h[setting,disease] * (p_d_life_m + p_d_inc_m[disease]) / pow(p_d_life_m, 2) * I_h[setting,disease] / p_N_h[setting] * S_m[setting,disease] : e_delta_m * (1 / p_d_inc_m[disease]) * E_m[setting,disease,delta_erlang_m - 1])
       - e_delta_m * (1 / p_d_inc_m[disease]) * E_m[setting,disease,delta_erlang_m]
       - r_death_m * E_m[setting,disease,delta_erlang_m]
 

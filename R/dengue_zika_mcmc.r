@@ -18,7 +18,6 @@ Options:
   -w --erlang-v=<erlang.v>          number of Erlang compartments in the vector
   -u --erlang-h=<erlang.h>          number of Erlang compartments in the human
   -d --beta                         include stochastic beta
-  -a --movement                     include movement
   -i --thin=<thin>                  thin
   -r --sample-prior                 sample prior
   -l --sample-observations          sample observations
@@ -28,6 +27,9 @@ Options:
   -m --model-file=<model.file>      given model file (means there will be no adaptation step)
   -k --keep                         keep working directory
   -f --force                        force overwrite
+  -q --patch                        patch model
+  -y --setting=<setting>            only fit this setting
+  -z --disease=<disease>            only fit this disease
   -v --verbose                      be verbose
   -b --parallel-number=<number>     parallel number
   -h --help                         show this message" -> doc
@@ -52,18 +54,20 @@ thin <- as.integer(opts[["thin"]])
 output_file_name <- opts[["output"]]
 model_file <- opts[["model-file"]]
 beta <- opts[["beta"]]
-move <- opts[["movement"]]
 sample_obs <- opts[["sample-observations"]]
 sample_prior <- opts[["sample-prior"]]
 sero <- opts[["sero"]]
 human_only <- opts[["human-only"]]
 fix_natural_history <- opts[["fix-natural-history"]]
+patch <- opts[["patch"]]
 force <- opts[["force"]]
 keep <- opts[["keep"]]
 verbose <- opts[["verbose"]]
 par_nb <- as.integer(opts[["parallel-number"]])
+analysis_setting <- opts[["setting"]]
+analysis_disease <- opts[["disease"]]
 
-stoch <- move || beta
+stoch <- beta
 
 library('dplyr')
 library('tidyr')
@@ -77,15 +81,25 @@ code_dir <- path.expand("~/code/vbd/")
 data_dir <-  path.expand("~/Data/Zika/")
 
 ## read data
-analyses <- list(c(setting = "yap", disease = "dengue"), c(setting = "yap", disease = "zika"), c(setting = "fais", disease = "dengue"))
+analyses <- data.frame(setting = c("yap", "yap", "fais"), disease = c("dengue", "zika", "dengue"))
+
+if (length(analysis_setting) > 0)
+{
+    analyses <- analyses %>% filter(setting == analysis_setting)
+}
+
+if (length(analysis_disease) > 0)
+{
+    analyses <- analyses %>% filter(disease == analysis_disease)
+}
 
 tend <- c()
 ts <- list()
 
-for (analysis in analyses)
+for (i in 1:nrow(analyses))
 {
-    this_setting <- analysis[["setting"]]
-    this_disease <- analysis[["disease"]]
+    this_setting <- analyses[i, "setting"]
+    this_disease <- analyses[i, "disease"]
     this_filename <-
       paste(code_dir, "data",
             paste(this_setting, this_disease, "data.rds", sep = "_"),
@@ -109,7 +123,6 @@ dt_ts <- bind_rows(ts) %>%
     select(week, obs_id, value) ## %>%
     ## complete(week, obs_id, fill = list(value = 0))
 
-## setting-specific adjustments
 init <- list(p_N_h = data.frame(setting = c("yap", "fais"), value = c(7391, 294)))
 
 if (length(thin) == 0) thin <- 1
@@ -117,13 +130,16 @@ if (length(thin) == 0) thin <- 1
 ## get model
 if (length(model_file) == 0)
 {
+    model_file_name <- paste(code_dir, "bi", "vbd", sep = "/")
     if (human_only)
     {
-        model_file_name <- paste(code_dir, "bi", "vbd_human.bi", sep = "/")
-    } else
-    {
-        model_file_name <- paste(code_dir, "bi", "vbd.bi", sep = "/")
+        model_file_name <- paste(model_file_name, "human", sep = "_")
     }
+    if (patch)
+    {
+        model_file_name <- paste(model_file_name, "patch_deter", sep = "_")
+    }
+    model_file_name <- paste(model_file_name, "bi", sep = ".")
 } else
 {
     model_file_name <- model_file
@@ -155,17 +171,9 @@ for (comp in names(erlang))
     }
 }
 
-if (!move && !human_only)
+if (!patch)
 {
-  model$fix(n_S_move = 0,
-            n_E_move = 0,
-            n_I_move = 0,
-            n_R_move = 0,
-            S_h_move = 0,
-            E_h_move = 0,
-            I_h_move = 0,
-            R_h_move = 0,
-            p_p_patch_yap = 1,
+  model$fix(p_p_patch_yap = 1,
             p_lr_patch_yap = 0,
             e_patch = 1)
 }
@@ -175,10 +183,10 @@ if (!beta)
   model$fix(n_transmission = 1)
 }
 
-if (!human_only)
-{
-    model$fix(p_tau = 7)
-}
+## if (!human_only)
+## {
+##     model$fix(p_tau = 7)
+## }
 
 if (fix_natural_history)
 {
@@ -198,7 +206,7 @@ if (length(output_file_name) == 0)
             filebase <- paste(filebase, paste0(comp, opts[[erlang[comp]]]), sep = "_")
         }
     }
-    output_file_name <- paste0(data_dir, "/", filebase, ifelse(move, "_move", ""), ifelse(beta, "_beta", ""), ifelse(sero, "_sero", ""), ifelse(length(par_nb) == 0, "", paste0("_", par_nb)))
+    output_file_name <- paste0(data_dir, "/", filebase, ifelse(human_only, "_human", ""), ifelse(beta, "_beta", ""), ifelse(sero, "_sero", ""), ifelse(patch, "_patch", ""), ifelse(length(par_nb) == 0, "", paste0("_", par_nb)))
 }
 cat("Output: ",  output_file_name, "\n")
 
@@ -286,7 +294,9 @@ if (stoch)
         cat(date(), "Starting adaptation of the number of particles.\n")
         bi_wrapper_particle_adapted <-
             adapt_particles(bi_wrapper_stoch,
-                            min = bi_wrapper_stoch$global_options[["nparticles"]])
+                            ## min = bi_wrapper_stoch$global_options[["nparticles"]]
+                            min = 1024, max = 33000
+                            )
         bi_wrapper_adapted <- bi_wrapper_particle_adapted
     }
 }
@@ -471,7 +481,7 @@ if (length(par_nb) == 0)
         states <- states %>%
             left_join(rep_params, by = c("disease", "np", "setting")) %>%
             mutate(obs_id = paste(setting, disease, sep = "_")) %>%
-            filter(obs_id != "fais_zika")
+            filter(obs_id %in% dt_ts$obs_id)
 
         res$Cases <- states %>%
             mutate(value = rtruncnorm(n = nrow(states), a = 0,
