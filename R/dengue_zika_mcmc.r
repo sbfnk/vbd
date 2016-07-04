@@ -15,8 +15,8 @@ Options:
   -p --pre_samples=<pre.samples>    number of preparatory samples to obtain
   -e --seed=<seed>                  random seed
   -t --threads=<num.threads>        number of threads
-  -w --erlang_v=<erlang.v>          number of Erlang compartments in the vector
-  -u --erlang_h=<erlang.h>          number of Erlang compartments in the human
+  -w --erlang-v=<erlang.v>          number of Erlang compartments in the vector
+  -u --erlang-h=<erlang.h>          number of Erlang compartments in the human
   -d --beta                         include stochastic beta
   -a --movement                     include movement
   -i --thin=<thin>                  thin
@@ -24,6 +24,7 @@ Options:
   -l --sample-observations          sample observations
   -s --sero                         include sero data
   -g --human-only                   only model humans
+  -x --fix-natural-history          fix the natural history of the mosquito
   -m --model-file=<model.file>      given model file (means there will be no adaptation step)
   -k --keep                         keep working directory
   -f --force                        force overwrite
@@ -44,8 +45,8 @@ num_samples <- as.integer(opts[["nsamples"]])
 num_particles <- as.integer(opts[["nparticles"]])
 pre_samples <- as.integer(opts[["pre_samples"]])
 num_threads <- as.integer(opts[["threads"]])
-erlang_vector <- as.integer(opts[["erlang_v"]])
-erlang_human <- as.integer(opts[["erlang_h"]])
+erlang_vector <- as.integer(opts[["erlang-v"]])
+erlang_human <- as.integer(opts[["erlang-h"]])
 seed <- as.integer(opts[["seed"]])
 thin <- as.integer(opts[["thin"]])
 output_file_name <- opts[["output"]]
@@ -56,6 +57,7 @@ sample_obs <- opts[["sample-observations"]]
 sample_prior <- opts[["sample-prior"]]
 sero <- opts[["sero"]]
 human_only <- opts[["human-only"]]
+fix_natural_history <- opts[["fix-natural-history"]]
 force <- opts[["force"]]
 keep <- opts[["keep"]]
 verbose <- opts[["verbose"]]
@@ -176,6 +178,13 @@ if (!beta)
 if (!human_only)
 {
     model$fix(p_tau = 7)
+}
+
+if (fix_natural_history)
+{
+    model$fix(p_d_inc_h = 5.9 / 7,
+              p_d_inc_m = 9.8 / 7,
+              p_d_life_m = 2)
 }
 
 ## set output file name
