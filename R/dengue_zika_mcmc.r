@@ -283,10 +283,6 @@ if (stoch)
         bi_wrapper_adapted <- bi_wrapper_stoch
     } else
     {
-        ## bi_wrapper_stoch$global_options[["nparticles"]] <- 1
-        bi_wrapper_stoch$run(nsamples = pre_samples, init = bi_wrapper_prior,
-                             add_options = list("init-np" = pre_samples - 1))
-
         cat(date(), "Starting adaptation of the number of particles.\n")
         bi_wrapper_particle_adapted <-
             adapt_particles(bi_wrapper_stoch,
