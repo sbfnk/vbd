@@ -23,6 +23,7 @@ Options:
   -r --sample-prior                 sample prior
   -l --sample-observations          sample observations
   -s --sero                         include sero data
+  -g --human-only                   only model humans
   -m --model-file=<model.file>      given model file (means there will be no adaptation step)
   -k --keep                         keep working directory
   -f --force                        force overwrite
@@ -54,6 +55,7 @@ move <- opts[["movement"]]
 sample_obs <- opts[["sample-observations"]]
 sample_prior <- opts[["sample-prior"]]
 sero <- opts[["sero"]]
+human_only <- opts[["human-only"]]
 force <- opts[["force"]]
 keep <- opts[["keep"]]
 verbose <- opts[["verbose"]]
@@ -113,7 +115,13 @@ if (length(thin) == 0) thin <- 1
 ## get model
 if (length(model_file) == 0)
 {
-    model_file_name <- paste(code_dir, "bi", "vbd.bi", sep = "/")
+    if (human_only)
+    {
+        model_file_name <- paste(code_dir, "bi", "vbd_human.bi", sep = "/")
+    } else
+    {
+        model_file_name <- paste(code_dir, "bi", "vbd.bi", sep = "/")
+    }
 } else
 {
     model_file_name <- model_file
@@ -137,12 +145,15 @@ for (comp in names(erlang))
     if (length(opts[[erlang[comp]]]) > 0)
     {
         erlang_line_no <- grep(paste0("const e_delta_", comp, "[[:space:]]*="), model$get_lines())
-        erlang_line <- model$get_lines()[erlang_line_no]
-        model$update_lines(erlang_line_no, sub("=.*$", paste("=", opts[[erlang[comp]]]), erlang_line))
+        if (length(erlang_line_no) > 0)
+        {
+            erlang_line <- model$get_lines()[erlang_line_no]
+            model$update_lines(erlang_line_no, sub("=.*$", paste("=", opts[[erlang[comp]]]), erlang_line))
+        }
     }
 }
 
-if (!move)
+if (!move && !human_only)
 {
   model$fix(n_S_move = 0,
             n_E_move = 0,
@@ -162,7 +173,10 @@ if (!beta)
   model$fix(n_transmission = 1)
 }
 
-model$fix(p_tau = 7)
+if (!human_only)
+{
+    model$fix(p_tau = 7)
+}
 
 ## set output file name
 if (length(output_file_name) == 0)
@@ -282,7 +296,7 @@ if ("nparticles" %in% names(bi_wrapper_adapted$global_options))
 
 if (length(model_file) == 0)
 {
-    cat(date(), "Adapting the proposal distribution.\n") 
+    cat(date(), "Adapting the proposal distribution.\n")
     bi_wrapper_adapted <-
         adapt_mcmc(bi_wrapper_adapted, min = 0.1, max = 0.5, max_iter = 10, scale = 2)
 } else
