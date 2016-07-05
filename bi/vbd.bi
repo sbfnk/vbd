@@ -60,7 +60,7 @@ model vbd {
     p_d_inc_h[disease] ~ log_gaussian(mean = log(5.9/7), std = 0.07/7)
     p_d_inc_m[disease] ~ log_gaussian(mean = log(9.8/7), std = 0.36/7)
 
-    p_d_life_m ~ uniform(lower = 2, upper = 4)
+    p_d_life_m ~ gaussian(mean = 2, std = 1)
     p_d_inf_h[disease] ~ truncated_gaussian(mean = 4.5/7, std = 1.78/7, lower = 0)
 
     p_p_asymptomatic[disease] ~ uniform(lower = 0, upper = 1)
