@@ -28,6 +28,7 @@ Options:
   -k --keep                         keep working directory
   -f --force                        force overwrite
   -q --patch                        patch model
+  -a --poisson                      poisson noise
   -y --setting=<setting>            only fit this setting
   -z --disease=<disease>            only fit this disease
   -v --verbose                      be verbose
@@ -57,6 +58,7 @@ beta <- opts[["beta"]]
 sample_obs <- opts[["sample-observations"]]
 sample_prior <- opts[["sample-prior"]]
 sero <- opts[["sero"]]
+poisson <- opts[["poisson"]]
 human_only <- opts[["human-only"]]
 fix_natural_history <- opts[["fix-natural-history"]]
 patch <- opts[["patch"]]
@@ -137,7 +139,7 @@ if (length(model_file) == 0)
     }
     if (patch)
     {
-        model_file_name <- paste(model_file_name, "patch_deter", sep = "_")
+        model_file_name <- paste(model_file_name, "patch", sep = "_")
     }
     model_file_name <- paste(model_file_name, "bi", sep = ".")
 } else
@@ -195,6 +197,11 @@ if (fix_natural_history)
               p_d_life_m = 2)
 }
 
+if (poisson)
+{
+    model$fix(p_phi_mult = 1)
+}
+
 ## set output file name
 if (length(output_file_name) == 0)
 {
@@ -206,7 +213,7 @@ if (length(output_file_name) == 0)
             filebase <- paste(filebase, paste0(comp, opts[[erlang[comp]]]), sep = "_")
         }
     }
-    output_file_name <- paste0(data_dir, "/", filebase, ifelse(human_only, "_human", ""), ifelse(beta, "_beta", ""), ifelse(sero, "_sero", ""), ifelse(patch, "_patch", ""), ifelse(length(par_nb) == 0, "", paste0("_", par_nb)))
+    output_file_name <- paste0(data_dir, "/", filebase, ifelse(human_only, "_human", ""), ifelse(beta, "_beta", ""), ifelse(sero, "_sero", ""), ifelse(patch, "_patch", ""), ifelse(nrow(analyses) == 1, paste("", as.character(analyses[1, "setting"]), as.character(analyses[1, "disease"]), sep = "_"), ""),  ifelse(length(par_nb) == 0, "", paste0("_", par_nb)))
 }
 cat("Output: ",  output_file_name, "\n")
 
@@ -220,7 +227,7 @@ unlink(working_folder, recursive = TRUE)
 suppressWarnings(dir.create(working_folder))
 
 ## set global options
-global_options <-  list(nsamples = pre_samples / 10,
+global_options <-  list(nsamples = pre_samples,
                         "end-time" = tend,
                         noutputs = tend)
 
@@ -228,6 +235,8 @@ global_options <-  list(nsamples = pre_samples / 10,
 if (length(seed) == 0) {
     seed <- ceiling(runif(1, -1, .Machine$integer.max - 1))
 }
+
+cat("Seed: ", seed, "\n")
 
 set.seed(seed)
 
@@ -356,6 +365,8 @@ res <- bi_read(read = bi_wrapper, thin = thin, verbose = verbose)
 burn <- num_samples * 0.25
 dic <- compute_DIC(read = res, burn = burn)
 
+cat("DIC: ", dic, "\n")
+
 saveRDS(list(dic = dic, nparticles = nparticles),
         file = paste0(output_file_name, "_dic.rds"))
 
@@ -363,13 +374,16 @@ if (length(par_nb) == 0)
 {
     cat(date(), "Plotting.\n")
 
-    ## mark state in data set (for plotting)
-    dt_ts <- dt_ts %>% mutate(state = "Cases")
-
     plot_args <- list(read = res, model = final_model,
                       density_args = list(adjust = 2), burn = burn,
                       extra.aes = c(color = "disease", linetype = "setting"),
                       plot = FALSE)
+    if (nrow(analyses) == 1)
+    {
+        plot_args[["select"]] <-
+            c(setting = as.character(analyses[1, "setting"]),
+              disease = as.character(analyses[1, "disease"]))
+    }
     if (sample_prior)
     {
         plot_args[["prior"]] <- res_prior
@@ -449,7 +463,7 @@ if (length(par_nb) == 0)
     saveRDS(params, paste0(output_file_name, "_params.rds"))
 
     cat(date(), "..R0.\n")
-    p_R0 <- ggplot(params %>% filter(state == "R0") %>%
+    p_R0 <- ggplot(params %>% filter(state == "R0" & disease %in% analyses$disease & setting %in% analyses$setting) %>%
                    mutate(disease = stri_trans_totitle(disease),
                           setting = stri_trans_totitle(setting)),
                    aes(x = value, color = disease, linetype = setting)) +
@@ -472,6 +486,11 @@ if (length(par_nb) == 0)
             filter(state %in% c("p_rep", "p_phi_mult", "p_phi_add")) %>%
             spread(state, value)
 
+        for (rep_param in setdiff(c("p_rep", "p_phi_mult"), colnames(rep_params)))
+        {
+            rep_params[[rep_param]] <- 1
+        }
+
         if ("patch" %in% colnames(rep_params))
         {
             rep_params <- rep_params %>%
@@ -480,17 +499,20 @@ if (length(par_nb) == 0)
 
         states <- states %>%
             left_join(rep_params, by = c("disease", "np", "setting")) %>%
-            mutate(obs_id = paste(setting, disease, sep = "_")) %>%
+            mutate(obs_id =
+                       factor(paste(setting, disease, sep = "_"),
+                              levels = c("yap_dengue", "fais_dengue",
+                                         "yap_zika"))) %>%
             filter(obs_id %in% dt_ts$obs_id)
 
         res$Cases <- states %>%
             mutate(value = rtruncnorm(n = nrow(states), a = 0,
                                       mean = p_rep * Z_h,
-                                      sd = sqrt((p_rep * (1 - p_rep) * Z_h + 1) / p_phi_mult)))
+                                      sd = sqrt((p_rep * Z_h + 1) / p_phi_mult)))
 
         ## manipulate data to match sampled observations
         data <- dt_ts %>%
-            mutate(time = week)
+            mutate(time = week, state = "Cases")
         first_obs <- data %>%
             filter(value > 0) %>%
             slice(which.min(time)) %>%
