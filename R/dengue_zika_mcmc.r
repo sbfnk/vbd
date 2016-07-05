@@ -538,7 +538,7 @@ if (length(par_nb) == 0)
 
         p_obs_grid <- p_obs$states + facet_wrap(~ obs_id, scales = "free_y")
 
-        ggsave(paste(output_file_name, "obs.pdf", sep = "_"), p_obs_grid)
+        ggsave(paste(output_file_name, "obs.pdf", sep = "_"), p_obs_grid, width = 10, height = 5)
 
         saveRDS(p_obs$data, paste0(output_file_name, "_obs_fits.rds"))
     }
