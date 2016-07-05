@@ -118,28 +118,28 @@ model vbd_patch {
     ode {
       dS_h[patch,setting,disease]/dt =
       - (p_tau[setting] * p_b_h[disease] * pow(10, p_lm[setting])) * I_m[patch,setting,disease] * S_h[patch,setting,disease] * n_transmission[setting,disease]
-      - pow(10, p_lr_patch_yap) * S_h[patch,setting,disease] * (patch == 0 ? p_p_patch_yap : 1 - p_p_patch_yap)
-      + pow(10, p_lr_patch_yap) * S_h[patch - 1,setting,disease] * (patch == 1 ? p_p_patch_yap : 1 - p_p_patch_yap)
+      - (setting == 0 ? pow(10, p_lr_patch_yap) * S_h[patch,setting,disease] * (patch == 0 ? p_p_patch_yap : 1 - p_p_patch_yap) : 0)
+      + (setting == 0 ? pow(10, p_lr_patch_yap) * S_h[patch - 1,setting,disease] * (patch == 1 ? p_p_patch_yap : 1 - p_p_patch_yap) : 0)
 
 
       dE_h[patch,setting,disease,delta_erlang_h]/dt =
       + (delta_erlang_h == 0 ? (p_tau[setting] * p_b_h[disease] * pow(10, p_lm[setting])) * I_m[patch,setting,disease] * S_h[patch,setting,disease] * n_transmission[setting,disease] : e_delta_h * (1 / p_d_inc_h[disease]) * E_h[patch,setting,disease,delta_erlang_h - 1])
       - e_delta_h * (1 / p_d_inc_h[disease]) * E_h[patch,setting,disease,delta_erlang_h]
-      - pow(10, p_lr_patch_yap) * E_h[patch,setting,disease,delta_erlang_h] * (patch == 0 ? p_p_patch_yap : 1 - p_p_patch_yap)
-      + pow(10, p_lr_patch_yap) * E_h[patch - 1,setting,disease,delta_erlang_h] * (patch == 1 ? p_p_patch_yap : 1 - p_p_patch_yap)
+      - (setting == 0 ? pow(10, p_lr_patch_yap) * E_h[patch,setting,disease,delta_erlang_h] * (patch == 0 ? p_p_patch_yap : 1 - p_p_patch_yap) : 0)
+      + (setting == 0 ? pow(10, p_lr_patch_yap) * E_h[patch - 1,setting,disease,delta_erlang_h] * (patch == 1 ? p_p_patch_yap : 1 - p_p_patch_yap) : 0)
 
       dI_h[patch,setting,disease]/dt =
       + (1 - p_p_asymptomatic[disease]) * e_delta_h * (1 / p_d_inc_h[disease]) * E_h[patch,setting,disease,e_delta_h - 1]
       - (1 / p_d_inf_h[disease]) * I_h[patch,setting,disease]
-      - pow(10, p_lr_patch_yap) * I_h[patch,setting,disease] * (patch == 0 ? p_p_patch_yap : 1 - p_p_patch_yap)
-      + pow(10, p_lr_patch_yap) * I_h[patch - 1,setting,disease] * (patch == 1 ? p_p_patch_yap : 1 - p_p_patch_yap)
+      - (setting == 0 ? pow(10, p_lr_patch_yap) * I_h[patch,setting,disease] * (patch == 0 ? p_p_patch_yap : 1 - p_p_patch_yap) : 0)
+      + (setting == 0 ? pow(10, p_lr_patch_yap) * I_h[patch - 1,setting,disease] * (patch == 1 ? p_p_patch_yap : 1 - p_p_patch_yap) : 0)
 
 
       dR_h[patch,setting,disease]/dt =
       + p_p_asymptomatic[disease] * e_delta_h * (1 / p_d_inc_h[disease]) * E_h[patch,setting,disease,e_delta_h - 1]
       + (1 / p_d_inf_h[disease]) * I_h[patch,setting,disease]
-      - pow(10, p_lr_patch_yap) * R_h[patch,setting,disease] * (patch == 0 ? p_p_patch_yap : 1 - p_p_patch_yap)
-      + pow(10, p_lr_patch_yap) * R_h[patch - 1,setting,disease] * (patch == 1 ? p_p_patch_yap : 1 - p_p_patch_yap)
+      - (setting == 0 ? pow(10, p_lr_patch_yap) * R_h[patch,setting,disease] * (patch == 0 ? p_p_patch_yap : 1 - p_p_patch_yap) : 0)
+      + (setting == 0 ? pow(10, p_lr_patch_yap) * R_h[patch - 1,setting,disease] * (patch == 1 ? p_p_patch_yap : 1 - p_p_patch_yap) : 0)
 
       dZ_h[patch,setting,disease]/dt =
       + (1 - p_p_asymptomatic[disease]) * e_delta_h * (1 / p_d_inc_h[disease]) * E_h[patch,setting,disease,e_delta_h - 1]

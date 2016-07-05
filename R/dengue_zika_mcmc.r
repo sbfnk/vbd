@@ -182,7 +182,8 @@ if (!patch)
 
 if (!beta)
 {
-  model$fix(n_transmission = 1)
+  model$fix(n_transmission = 1,
+            p_vol_transmission = 0)
 }
 
 ## if (!human_only)
@@ -323,6 +324,8 @@ if (length(model_file) == 0)
     cat(date(), "Adapting the proposal distribution.\n")
     bi_wrapper_adapted <-
         adapt_mcmc(bi_wrapper_adapted, min = 0.1, max = 0.5, max_iter = 10, scale = 2)
+    bi_wrapper_adapted <-
+        adapt_mcmc(bi_wrapper_adapted, min = 0.1, max = 0.5, max_iter = 10, scale = 2, correlations = TRUE)
 } else
 {
     bi_wrapper_adapted$model <- model

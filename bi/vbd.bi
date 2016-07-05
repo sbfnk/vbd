@@ -20,7 +20,6 @@ model vbd {
 
   param p_p_asymptomatic[disease] // proportion of infections that are asymptomatic
   param p_lm[setting] // number of female vectors per human (log base 10)
-  param p_N_h[setting]
   param p_initial_susceptible // proportion initially susceptible for dengue in Yap
 
   param p_rep[disease] // reporting rate
@@ -52,6 +51,8 @@ model vbd {
   state R0_h_m[setting,disease] // mosquito-to-human
 
   noise n_transmission[setting,disease](has_output = 0)
+
+  input p_N_h[setting]
 
   obs Cases[obs_id]
   obs Sero[obs_id]
