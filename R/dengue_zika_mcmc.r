@@ -125,7 +125,9 @@ dt_ts <- bind_rows(ts) %>%
     select(week, obs_id, value) ## %>%
     ## complete(week, obs_id, fill = list(value = 0))
 
-init <- list(p_N_h = data.frame(setting = c("yap", "fais"), value = c(7391, 294)))
+init <- list(p_N_h = data.frame(setting = factor(c("yap", "fais"),
+                                                 levels = c("yap", "fais")),
+                                value = c(7391, 294)))
 
 if (length(thin) == 0) thin <- 1
 
