@@ -291,17 +291,17 @@ bi_wrapper_prior <- libbi(model = model_prior, run = TRUE,
                           init = init, verbose = verbose)
 
 cat(date(), "Running the model.\n")
-bi_wrapper_adapted <- adapt_mcmc(bi_wrapper_prior, min = 0, max = 1)
+model <- output_to_proposal()
 
 if (stoch)
 {
-    bi_wrapper_stoch <- bi_wrapper_adapted
     if (length(num_particles) > 0)
     {
-        bi_wrapper_adapted <- bi_wrapper_stoch
+        bi_wrapper_adapted <- bi_wrapper_prior
     } else
     {
         cat(date(), "Starting adaptation of the number of particles.\n")
+        bi_wrapper_adapted <- adapt_mcmc(bi_wrapper_prior, min = 0.1, max = 0.5)
         bi_wrapper_particle_adapted <-
             adapt_particles(bi_wrapper_stoch,
                             ## min = bi_wrapper_stoch$global_options[["nparticles"]]
@@ -309,7 +309,10 @@ if (stoch)
                             )
         bi_wrapper_adapted <- bi_wrapper_particle_adapted
     }
+} else {
+  bi_wrapper_adapted <- bi_wrapper_prior
 }
+
 
 if ("nparticles" %in% names(bi_wrapper_adapted$global_options))
 {
@@ -323,9 +326,8 @@ if (length(model_file) == 0)
 {
     cat(date(), "Adapting the proposal distribution.\n")
     bi_wrapper_adapted <-
-        adapt_mcmc(bi_wrapper_adapted, min = 0.1, max = 0.5, max_iter = 10, scale = 2)
-    bi_wrapper_adapted <-
-        adapt_mcmc(bi_wrapper_adapted, min = 0.1, max = 0.5, max_iter = 10, scale = 2, correlations = TRUE)
+      adapt_mcmc(bi_wrapper_adapted, min = 0.1, max = 0.4, max_iter = 10,
+                 scale = 2, correlations = TRUE)
 } else
 {
     bi_wrapper_adapted$model <- model
