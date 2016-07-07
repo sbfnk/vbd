@@ -326,7 +326,7 @@ if (length(model_file) == 0)
 {
     cat(date(), "Adapting the proposal distribution.\n")
     bi_wrapper_adapted <-
-      adapt_mcmc(bi_wrapper_adapted, min = 0.1, max = 0.5, max_iter = 10,
+      adapt_mcmc(bi_wrapper_adapted, min = 0.1, max = 0.4, max_iter = 10,
                  scale = 2, correlations = TRUE)
 } else
 {
