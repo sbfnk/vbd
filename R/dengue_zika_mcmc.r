@@ -291,7 +291,6 @@ bi_wrapper_prior <- libbi(model = model_prior, run = TRUE,
                           init = init, verbose = verbose)
 
 cat(date(), "Running the model.\n")
-model <- output_to_proposal()
 
 if (stoch)
 {
