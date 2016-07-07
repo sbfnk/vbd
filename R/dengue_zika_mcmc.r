@@ -291,7 +291,9 @@ bi_wrapper_prior <- libbi(model = model_prior, run = TRUE,
                           init = init, verbose = verbose)
 
 cat(date(), "Running the model.\n")
-bi_wrapper_adapted <- adapt_mcmc(bi_wrapper_prior, min = 0, max = 1)
+model <- output_to_proposal()
+
+bi_wrapper_adapted <- adapt_mcmc(bi_wrapper_prior, min = 0.1, max = 0.5)
 
 if (stoch)
 {
@@ -323,9 +325,8 @@ if (length(model_file) == 0)
 {
     cat(date(), "Adapting the proposal distribution.\n")
     bi_wrapper_adapted <-
-        adapt_mcmc(bi_wrapper_adapted, min = 0.1, max = 0.5, max_iter = 10, scale = 2)
-    bi_wrapper_adapted <-
-        adapt_mcmc(bi_wrapper_adapted, min = 0.1, max = 0.5, max_iter = 10, scale = 2, correlations = TRUE)
+      adapt_mcmc(bi_wrapper_adapted, min = 0.1, max = 0.5, max_iter = 10,
+                 scale = 2, correlations = TRUE)
 } else
 {
     bi_wrapper_adapted$model <- model
