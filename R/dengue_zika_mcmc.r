@@ -48,8 +48,6 @@ num_samples <- as.integer(opts[["nsamples"]])
 num_particles <- as.integer(opts[["nparticles"]])
 pre_samples <- as.integer(opts[["pre_samples"]])
 num_threads <- as.integer(opts[["threads"]])
-erlang_vector <- as.integer(opts[["erlang-v"]])
-erlang_human <- as.integer(opts[["erlang-h"]])
 seed <- as.integer(opts[["seed"]])
 thin <- as.integer(opts[["thin"]])
 output_file_name <- opts[["output"]]
@@ -160,18 +158,15 @@ if (verbose) ## all states
 }
 
 ## update model lines for requested number of Erlang compartments
-erlang <- c(h = "erlang_human", m = "erlang_vector")
+erlang <- c(h = "erlang-h", m = "erlang-v")
 
 for (comp in names(erlang))
 {
     if (length(opts[[erlang[comp]]]) > 0)
     {
-        erlang_line_no <- grep(paste0("const e_delta_", comp, "[[:space:]]*="), model$get_lines())
-        if (length(erlang_line_no) > 0)
-        {
-            erlang_line <- model$get_lines()[erlang_line_no]
-            model$update_lines(erlang_line_no, sub("=.*$", paste("=", opts[[erlang[comp]]]), erlang_line))
-        }
+        fix_opt <- list(opts[[erlang[comp]]])
+        names(fix_opt) <- paste0("e_delta_", comp)
+        do.call(model$fix, fix_opt)
     }
 }
 
