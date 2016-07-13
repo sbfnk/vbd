@@ -371,6 +371,7 @@ res <- bi_read(read = bi_wrapper, thin = thin, verbose = verbose)
 
 ## 25% burn-in
 burn <- floor(num_samples / thin * 0.25)
+dic <- compute_DIC(read = res, burn = burn)
 cat("DIC: ", dic, "\n")
 
 saveRDS(list(dic = dic, nparticles = nparticles),
