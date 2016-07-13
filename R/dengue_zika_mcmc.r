@@ -183,11 +183,6 @@ if (!beta)
             p_vol_transmission = 0)
 }
 
-## if (!human_only)
-## {
-##     model$fix(p_tau = 7)
-## }
-
 if (fix_natural_history)
 {
 ##    p_d_inc_h = 5.9 / 7
@@ -195,7 +190,7 @@ if (fix_natural_history)
     p_tau = 7
     p_d_life_m = 2
     model$fix(p_d_life_m = p_d_life_m,
-	      p_tau = p_tau)
+              p_tau = p_tau)
 }
 
 if (poisson)
