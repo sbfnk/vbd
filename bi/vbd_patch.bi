@@ -60,7 +60,7 @@ model vbd_patch {
   noise n_transmission[setting,disease](has_output = 0)
 
   obs Cases[obs_id]
-  obs Sero[obs_id](has_output = 0)
+  obs Sero[obs_id]
 
   sub parameter {
     p_d_inc_h[disease] ~ log_gaussian(mean = log(5.9/7), std = 0.07/7)
@@ -68,8 +68,6 @@ model vbd_patch {
 
     p_d_life_m ~ uniform(lower = 2, upper = 4)
     p_d_inf_h[disease] ~ truncated_gaussian(mean = 4.5/7, std = 1.78/7, lower = 0)
-
-    p_p_asymptomatic[disease] ~ uniform(lower = 0, upper = 1)
 
     p_rep[disease] ~ uniform(lower = 0, upper = 1)
 
@@ -83,7 +81,7 @@ model vbd_patch {
     p_phi_mult[disease] ~ uniform(lower = 0, upper = 1)
     // p_phi_add[disease] ~ uniform(lower = 0, upper = 5)
 
-    p_initial_susceptible ~ uniform(lower = 0, upper = 1)
+    p_initial_susceptible[setting,disease] ~ uniform(lower = 0, upper = 1)
 
     p_lr_patch_yap ~ uniform(lower = -5, upper = -2)
     p_p_patch_yap ~ uniform(lower = 0, upper = 1)
@@ -92,7 +90,7 @@ model vbd_patch {
   }
 
   sub initial {
-    S_h[patch,setting,disease] <- (setting == 0 && disease == 0 ? p_initial_susceptible : 1) * p_N_h[setting] * (setting == 0 ? (patch == 0 ? p_p_patch_yap : 1 - p_p_patch_yap) : 1 - patch)
+    S_h[patch,setting,disease] <- p_initial_susceptible[setting,disease] * p_N_h[setting] * (setting == 0 ? (patch == 0 ? p_p_patch_yap : 1 - p_p_patch_yap) : 1 - patch)
     E_h[patch,setting,disease,delta_erlang_h] <- 0
     I_h[patch,setting,disease] <- 0
     R_h[patch,setting,disease] <- 0
@@ -128,20 +126,19 @@ model vbd_patch {
       + (setting == 0 ? pow(10, p_lr_patch_yap) * E_h[patch - 1,setting,disease,delta_erlang_h] * (patch == 1 ? p_p_patch_yap : 1 - p_p_patch_yap) : 0)
 
       dI_h[patch,setting,disease]/dt =
-      + (1 - p_p_asymptomatic[disease]) * e_delta_h * (1 / p_d_inc_h[disease]) * E_h[patch,setting,disease,e_delta_h - 1]
+      + e_delta_h * (1 / p_d_inc_h[disease]) * E_h[patch,setting,disease,e_delta_h - 1]
       - (1 / p_d_inf_h[disease]) * I_h[patch,setting,disease]
       - (setting == 0 ? pow(10, p_lr_patch_yap) * I_h[patch,setting,disease] * (patch == 0 ? p_p_patch_yap : 1 - p_p_patch_yap) : 0)
       + (setting == 0 ? pow(10, p_lr_patch_yap) * I_h[patch - 1,setting,disease] * (patch == 1 ? p_p_patch_yap : 1 - p_p_patch_yap) : 0)
 
 
       dR_h[patch,setting,disease]/dt =
-      + p_p_asymptomatic[disease] * e_delta_h * (1 / p_d_inc_h[disease]) * E_h[patch,setting,disease,e_delta_h - 1]
       + (1 / p_d_inf_h[disease]) * I_h[patch,setting,disease]
       - (setting == 0 ? pow(10, p_lr_patch_yap) * R_h[patch,setting,disease] * (patch == 0 ? p_p_patch_yap : 1 - p_p_patch_yap) : 0)
       + (setting == 0 ? pow(10, p_lr_patch_yap) * R_h[patch - 1,setting,disease] * (patch == 1 ? p_p_patch_yap : 1 - p_p_patch_yap) : 0)
 
       dZ_h[patch,setting,disease]/dt =
-      + (1 - p_p_asymptomatic[disease]) * e_delta_h * (1 / p_d_inc_h[disease]) * E_h[patch,setting,disease,e_delta_h - 1]
+      + e_delta_h * (1 / p_d_inc_h[disease]) * E_h[patch,setting,disease,e_delta_h - 1]
 
       dS_m[patch,setting,disease]/dt =
       + r_births_m
