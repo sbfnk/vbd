@@ -25,10 +25,9 @@ model vbd_patch {
 
   param p_vol_transmission[setting]
 
-  param p_p_asymptomatic[disease] // proportion of infections that are asymptomatic
   param p_lm[setting] // number of female vectors per human (log base 10)
   param p_N_h[setting]
-  param p_initial_susceptible // proportion initially susceptible for dengue in Yap
+  param p_initial_susceptible[setting,disease] // proportion initially susceptible for dengue in Yap
 
   param p_rep[disease] // reporting rate
 
