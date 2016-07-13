@@ -29,6 +29,7 @@ Options:
   -f --force                        force overwrite
   -q --patch                        patch model
   -a --poisson                      poisson noise
+  -j --asymptomatic                 model asymptomatic cases
   -y --setting=<setting>            only fit this setting
   -z --disease=<disease>            only fit this disease
   -v --verbose                      be verbose
@@ -60,6 +61,7 @@ poisson <- opts[["poisson"]]
 human_only <- opts[["human-only"]]
 fix_natural_history <- opts[["fix-natural-history"]]
 patch <- opts[["patch"]]
+asymptomatic <- opts[["asymptomatic"]]
 force <- opts[["force"]]
 keep <- opts[["keep"]]
 verbose <- opts[["verbose"]]
@@ -181,6 +183,11 @@ if (!beta)
 {
   model$fix(n_transmission = 1,
             p_vol_transmission = 0)
+}
+
+if (!asymptomatic)
+{
+  model$fix(p_p_asymptomatic = 0)
 }
 
 ## if (!human_only)
@@ -364,8 +371,6 @@ res <- bi_read(read = bi_wrapper, thin = thin, verbose = verbose)
 
 ## 25% burn-in
 burn <- floor(num_samples / thin * 0.25)
-dic <- compute_DIC(read = res, burn = burn)
-
 cat("DIC: ", dic, "\n")
 
 saveRDS(list(dic = dic, nparticles = nparticles),
