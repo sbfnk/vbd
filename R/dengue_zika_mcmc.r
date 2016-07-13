@@ -197,9 +197,12 @@ if (!asymptomatic)
 
 if (fix_natural_history)
 {
-    model$fix(p_d_inc_h = 5.9 / 7,
-              p_d_inc_m = 9.8 / 7,
-              p_d_life_m = 2)
+    p_d_inc_h = 5.9 / 7
+    p_d_inc_m = 9.8 / 7
+    p_d_life_m = 2
+    model$fix(p_d_inc_h = p_d_inc_h,
+              p_d_inc_m = p_d_inc_m,
+              p_d_life_m = p_d_life_m)
 }
 
 if (poisson)
@@ -459,8 +462,8 @@ if (length(par_nb) == 0)
     r0 <- params_all %>%
         spread(state, value) %>%
         mutate(R0 = p_d_life_m * 
-                   sqrt(p_b_h * p_b_m * 10**(p_lm) * p_d_inf_h /
-                        (p_d_life_m + p_d_inc_m))) %>%
+                 sqrt(p_b_h * p_b_m * 10**(p_lm) * p_d_inf_h /
+                      (p_d_life_m + p_d_inc_m))) %>%
         gather(state, value, loglikelihood:R0) %>%
         filter(state == "R0")
 
