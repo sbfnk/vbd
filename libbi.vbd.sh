@@ -12,5 +12,5 @@ seed=$RANDOM
 
 echo Seed: $seed
 
-Rscript ~/code/vbd/R/dengue_zika_mcmc.r --nsamples 1000000 --pre_samples 1000 --sample-prior --sample-observations  --force --thin 1000 --patch --poisson --seed $seed --parallel-number ${SGE_TASK_ID}
+Rscript ~/code/vbd/R/dengue_zika_mcmc.r --nsamples 1000000 --pre_samples 1000 --sample-prior --sample-observations  --force --thin 1000 --patch --poisson --seed $seed --parallel-number ${SGE_TASK_ID} --sero
 

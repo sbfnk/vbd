@@ -190,12 +190,12 @@ if (!beta)
 
 if (fix_natural_history)
 {
-    p_d_inc_h = 5.9 / 7
-    p_d_inc_m = 9.8 / 7
+##    p_d_inc_h = 5.9 / 7
+##    p_d_inc_m = 9.8 / 7
+    p_tau = 7
     p_d_life_m = 2
-    model$fix(p_d_inc_h = p_d_inc_h,
-              p_d_inc_m = p_d_inc_m,
-              p_d_life_m = p_d_life_m)
+    model$fix(p_d_life_m = p_d_life_m,
+	      p_tau = p_tau)
 }
 
 if (poisson)
