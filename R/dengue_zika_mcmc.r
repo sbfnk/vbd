@@ -222,7 +222,6 @@ if (length(output_file_name) == 0)
         }
     }
     output_file_name <- paste0(data_dir, "/", filebase, ifelse(human_only, "_human", ""), ifelse(beta, "_beta", ""), ifelse(poisson, "_poisson", ""), ifelse(sero, "_sero", ""), ifelse(patch, "_patch", ""), ifelse(asymptomatic, "_asymptomatic", ""), ifelse(fix_natural_history, "_fnh", ""), ifelse(nrow(analyses) == 1, paste("", as.character(analyses[1, "setting"]), as.character(analyses[1, "disease"]), sep = "_"), ""),  ifelse(length(par_nb) == 0, "", paste0("_", par_nb)))
-    output_file_name <- paste0(data_dir, "/", filebase, ifelse(human_only, "_human", ""), ifelse(beta, "_beta", ""), ifelse(poisson, "_poisson", ""), ifelse(sero, "_sero", ""), ifelse(patch, "_patch", ""), ifelse(asymptomatic, "_asymptomatic", ""), ifelse(nrow(analyses) == 1, paste("", as.character(analyses[1, "setting"]), as.character(analyses[1, "disease"]), sep = "_"), ""),  ifelse(length(par_nb) == 0, "", paste0("_", par_nb)))
 }
 cat("Output: ",  output_file_name, "\n")
 
