@@ -61,7 +61,7 @@ model vbd_patch {
   noise n_transmission[setting,disease](has_output = 0)
 
   obs Cases[obs_id]
-  obs Sero[obs_id](has_ouptut = 0)
+  obs Sero[obs_id](has_output = 0)
 
   sub parameter {
     p_d_inc_h[disease] ~ log_gaussian(mean = log(5.9/7), std = 0.07/7)
