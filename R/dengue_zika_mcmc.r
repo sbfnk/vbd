@@ -170,7 +170,10 @@ for (comp in names(erlang))
     }
 }
 
-if (!patch)
+if (patch)
+{
+  model$fix(p_lr_patch_yap = -2.5)
+} else
 {
   model$fix(p_p_patch_yap = 1,
             p_lr_patch_yap = 0,
