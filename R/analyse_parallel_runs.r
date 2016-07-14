@@ -5,7 +5,7 @@ library('dplyr')
 
 output_dir <- path.expand("~/Data/Zika")
 
-mcmc_files <- list.files(output_dir, pattern = "vbd_poisson_sero_patch_[0-9]+\\.rds", full.names = TRUE)
+mcmc_files <- list.files(output_dir, pattern = "vbd_poisson_sero_patch_fnh_[0-9]+\\.rds", full.names = TRUE)
 
 traces <- list()
 
@@ -36,11 +36,6 @@ combined <- lapply(names(traces[[1]]), function(x) {
 model <- bi_model("~/code/vbd/bi/vbd_patch.bi")
 names(combined) <- names(traces[[1]])
 
+res <- combined
+
 p <- plot_libbi(combined, model, extra.aes = c(color = "disease", linetype = "setting"))
-
-
-res <- list(Z_h = bind_rows(Z_traj))
-
-plot_libbi(res, model, extra.aes = c(color = "disease", linetype = "setting"))
-
-mcmc <- mcmc.list(traces[!sapply(traces, is.null)])
