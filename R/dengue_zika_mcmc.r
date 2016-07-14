@@ -451,7 +451,7 @@ if (length(par_nb) == 0)
 
     r0 <- params_all %>%
         spread(state, value) %>%
-        mutate(R0 = p_d_life_m * 
+        mutate(R0 = p_tau * p_d_life_m * 
                  sqrt(p_b_h * p_b_m * 10**(p_lm) * p_d_inf_h /
                       (p_d_life_m + p_d_inc_m))) %>%
         gather(state, value, loglikelihood:R0) %>%
