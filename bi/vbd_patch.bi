@@ -34,7 +34,7 @@ model vbd_patch {
   param p_b_h[disease] // probability that a bite on a human leads to infection
   param p_b_m[disease] // probability that a bite on a vector leads to infection
 
-  param p_lr_patch_yap // importation rate between two patches
+  param p_red_foi_yap // importation rate between two patches
   param p_p_patch_yap // proportion of individuals in each patch
 
   param p_t_start[setting,disease]
@@ -83,7 +83,7 @@ model vbd_patch {
 
     p_initial_susceptible[setting,disease] ~ uniform(lower = 0, upper = 1)
 
-    p_lr_patch_yap ~ uniform(lower = -5, upper = -2)
+    p_red_foi_yap ~ uniform(lower = 0, upper = 1)
     p_p_patch_yap ~ uniform(lower = 0, upper = 1)
 
     p_vol_transmission[setting] ~ uniform(lower = 0, upper = 3)
@@ -115,38 +115,29 @@ model vbd_patch {
     ode {
       dS_h[patch,setting,disease]/dt =
       - (p_tau[setting] * p_b_h[disease] * pow(10, p_lm[setting])) * I_m[patch,setting,disease] * S_h[patch,setting,disease] * n_transmission[setting,disease]
-      - (setting == 0 ? pow(10, p_lr_patch_yap) * S_h[patch,setting,disease] * (patch == 0 ? p_p_patch_yap : 1 - p_p_patch_yap) : 0)
-      + (setting == 0 ? pow(10, p_lr_patch_yap) * S_h[patch - 1,setting,disease] * (patch == 1 ? p_p_patch_yap : 1 - p_p_patch_yap) : 0)
-
 
       dE_h[patch,setting,disease,delta_erlang_h]/dt =
       + (delta_erlang_h == 0 ? (p_tau[setting] * p_b_h[disease] * pow(10, p_lm[setting])) * I_m[patch,setting,disease] * S_h[patch,setting,disease] * n_transmission[setting,disease] : e_delta_h * (1 / p_d_inc_h[disease]) * E_h[patch,setting,disease,delta_erlang_h - 1])
       - e_delta_h * (1 / p_d_inc_h[disease]) * E_h[patch,setting,disease,delta_erlang_h]
-      - (setting == 0 ? pow(10, p_lr_patch_yap) * E_h[patch,setting,disease,delta_erlang_h] * (patch == 0 ? p_p_patch_yap : 1 - p_p_patch_yap) : 0)
-      + (setting == 0 ? pow(10, p_lr_patch_yap) * E_h[patch - 1,setting,disease,delta_erlang_h] * (patch == 1 ? p_p_patch_yap : 1 - p_p_patch_yap) : 0)
 
       dI_h[patch,setting,disease]/dt =
       + e_delta_h * (1 / p_d_inc_h[disease]) * E_h[patch,setting,disease,e_delta_h - 1]
       - (1 / p_d_inf_h[disease]) * I_h[patch,setting,disease]
-      - (setting == 0 ? pow(10, p_lr_patch_yap) * I_h[patch,setting,disease] * (patch == 0 ? p_p_patch_yap : 1 - p_p_patch_yap) : 0)
-      + (setting == 0 ? pow(10, p_lr_patch_yap) * I_h[patch - 1,setting,disease] * (patch == 1 ? p_p_patch_yap : 1 - p_p_patch_yap) : 0)
 
 
       dR_h[patch,setting,disease]/dt =
       + (1 / p_d_inf_h[disease]) * I_h[patch,setting,disease]
-      - (setting == 0 ? pow(10, p_lr_patch_yap) * R_h[patch,setting,disease] * (patch == 0 ? p_p_patch_yap : 1 - p_p_patch_yap) : 0)
-      + (setting == 0 ? pow(10, p_lr_patch_yap) * R_h[patch - 1,setting,disease] * (patch == 1 ? p_p_patch_yap : 1 - p_p_patch_yap) : 0)
 
       dZ_h[patch,setting,disease]/dt =
       + e_delta_h * (1 / p_d_inc_h[disease]) * E_h[patch,setting,disease,e_delta_h - 1]
 
       dS_m[patch,setting,disease]/dt =
       + r_births_m
-      - p_tau[setting] * p_b_m[disease] * I_h[patch,setting,disease] / p_N_h[setting] * S_m[patch,setting,disease]
+      - p_tau[setting] * p_b_m[disease] * (I_h[patch,setting,disease] + (setting == 0 ? p_red_foi_yap : 1) * I_h[1 - patch,setting,disease]) / p_N_h[setting] * S_m[patch,setting,disease]
       - r_death_m * S_m[patch,setting,disease]
 
       dE_m[patch,setting,disease,delta_erlang_m]/dt =
-      + (delta_erlang_m == 0 ? p_tau[setting] * p_b_m[disease] * I_h[patch,setting,disease] / p_N_h[setting] * S_m[patch,setting,disease] : e_delta_m * (1 / p_d_inc_m[disease]) * E_m[patch,setting,disease,delta_erlang_m - 1])
+      + (delta_erlang_m == 0 ? p_tau[setting] * p_b_m[disease] * (I_h[patch,setting,disease] + (setting == 0 ? p_red_foi_yap : 1) * I_h[1 - patch,setting,disease]) / p_N_h[setting] * S_m[patch,setting,disease] : e_delta_m * (1 / p_d_inc_m[disease]) * E_m[patch,setting,disease,delta_erlang_m - 1])
       - e_delta_m * (1 / p_d_inc_m[disease]) * E_m[patch,setting,disease,delta_erlang_m]
       - r_death_m * E_m[patch,setting,disease,delta_erlang_m]
 
