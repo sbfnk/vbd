@@ -352,6 +352,8 @@ bi_wrapper$run(add_options = list("init-np" = pre_samples - 1,
                                   seed = libbi_seed),
                init = bi_wrapper_adapted, verbose = verbose)
 
+cat(date(), "Done.\n")
+
 if (length(model_file) == 0)
 {
     model_file <- paste(output_file_name, "bi", sep = ".")
