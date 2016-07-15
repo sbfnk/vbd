@@ -133,10 +133,6 @@ if (length(thin) == 0) thin <- 1
 if (length(model_file) == 0)
 {
     model_file_name <- paste(code_dir, "bi", "vbd", sep = "/")
-    if (patch)
-    {
-        model_file_name <- paste(model_file_name, "patch", sep = "_")
-    }
     model_file_name <- paste(model_file_name, "bi", sep = ".")
 } else
 {
