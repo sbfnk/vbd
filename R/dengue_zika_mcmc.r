@@ -185,8 +185,8 @@ if (fix_natural_history)
 
 if (fix_move)
 {
-    p_p_patch_yap <- 0.45
-    p_red_foi_yap <- 0.61
+    p_p_patch_yap <- 0.64
+    p_red_foi_yap <- 0.076
     model$fix(p_p_patch_yap = p_p_patch_yap,
               p_red_foi_yap = p_red_foi_yap)
 }
