@@ -125,7 +125,7 @@ dt_ts <- bind_rows(ts) %>%
 
 init <- list(p_N_h = data.frame(setting = factor(c("yap", "fais"),
                                                  levels = c("yap", "fais")),
-                                value = c(7391, 294)))
+                                value = c(7370, 294)))
 
 saveRDS(init, paste(output_file_name, "init.rds", sep = "_"))
 
