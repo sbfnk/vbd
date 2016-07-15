@@ -127,8 +127,6 @@ init <- list(p_N_h = data.frame(setting = factor(c("yap", "fais"),
                                                  levels = c("yap", "fais")),
                                 value = c(7370, 294)))
 
-saveRDS(init, paste(output_file_name, "init.rds", sep = "_"))
-
 if (length(thin) == 0) thin <- 1
 
 ## get model
@@ -212,6 +210,8 @@ if (length(output_file_name) == 0)
     output_file_name <- paste0(data_dir, "/", filebase, ifelse(fix_move, "_move", ""), ifelse(beta, "_beta", ""), ifelse(poisson, "_poisson", ""), ifelse(sero, "_sero", ""), ifelse(patch, "_patch", ""), ifelse(fix_natural_history, "_fnh", ""), ifelse(nrow(analyses) == 1, paste("", as.character(analyses[1, "setting"]), as.character(analyses[1, "disease"]), sep = "_"), ""),  ifelse(length(par_nb) == 0, "", paste0("_", par_nb)))
 }
 cat("Output: ",  output_file_name, "\n")
+
+saveRDS(init, paste(output_file_name, "init.rds", sep = "_"))
 
 if (!force && file.exists(paste0(output_file_name, "_params.rds")))
 {
