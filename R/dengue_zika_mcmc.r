@@ -273,7 +273,10 @@ if (length(num_particles) > 0)
 obs <- list(Cases = dt_ts)
 if (sero)
 {
-    obs[["Sero"]] <- data.frame(week = dt_ts %>% filter(obs_id == "yap_zika") %>% .$week %>% max, obs_id = "yap_zika", value = 0.73)
+    if ("yap_zika" %in% dt_ts$obs_id)
+    {
+        obs[["Sero"]] <- data.frame(week = dt_ts %>% filter(obs_id == "yap_zika") %>% .$week %>% max, obs_id = "yap_zika", value = 0.73)
+    }
 }
 
 model_prior <- model$propose_prior()
