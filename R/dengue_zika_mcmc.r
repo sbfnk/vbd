@@ -127,6 +127,8 @@ init <- list(p_N_h = data.frame(setting = factor(c("yap", "fais"),
                                                  levels = c("yap", "fais")),
                                 value = c(7391, 294)))
 
+saveRDS(init, paste(output_file_name, "init.rds", sep = "_"))
+
 if (length(thin) == 0) thin <- 1
 
 ## get model
@@ -278,6 +280,8 @@ if (sero)
         obs[["Sero"]] <- data.frame(week = dt_ts %>% filter(obs_id == "yap_zika") %>% .$week %>% max, obs_id = "yap_zika", value = 0.73)
     }
 }
+
+saveRDS(obs, paste(output_file_name, "obs.rds", sep = "_"))
 
 model_prior <- model$propose_prior()
 bi_wrapper_prior <- libbi(model = model_prior, run = TRUE,
