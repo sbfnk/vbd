@@ -84,7 +84,7 @@ model vbd {
     p_initial_susceptible[setting,disease] ~ uniform(lower = 0, upper = 1)
 
     p_red_foi_yap ~ uniform(lower = 0, upper = 1)
-    p_p_patch_yap ~ uniform(lower = 0, upper = 1)
+    p_p_patch_yap ~ uniform(lower = 0.5, upper = 1)
 
     p_vol_transmission[setting] ~ uniform(lower = 0, upper = 3)
   }
