@@ -22,7 +22,7 @@ Options:
   -r --sample-prior                 sample prior
   -l --sample-observations          sample observations
   -s --sero                         include sero data
-  -g --human-only                   only model humans
+  -g --fix-move                     fix movement
   -x --fix-natural-history          fix the natural history of the mosquito
   -m --model-file=<model.file>      given model file (means there will be no adaptation step)
   -k --keep                         keep working directory
@@ -59,6 +59,7 @@ sero <- opts[["sero"]]
 poisson <- opts[["poisson"]]
 human_only <- opts[["human-only"]]
 fix_natural_history <- opts[["fix-natural-history"]]
+fix_move <- opts[["fix-move"]]
 patch <- opts[["patch"]]
 force <- opts[["force"]]
 keep <- opts[["keep"]]
@@ -188,12 +189,18 @@ if (!beta)
 
 if (fix_natural_history)
 {
-##    p_d_inc_h = 5.9 / 7
-##    p_d_inc_m = 9.8 / 7
-    p_tau = 7
-    p_d_life_m = 2
+    p_tau <- 7
+    p_d_life_m <- 2
     model$fix(p_d_life_m = p_d_life_m,
               p_tau = p_tau)
+}
+
+if (fix_move)
+{
+    p_p_patch_yap <- 0.45
+    p_red_foi_yap <- 0.61
+    model$fix(p_p_patch_yap = p_p_patch_yap,
+              p_red_foi_yap = p_red_foi_yap)
 }
 
 if (poisson)
