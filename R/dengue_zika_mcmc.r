@@ -57,7 +57,6 @@ sample_obs <- opts[["sample-observations"]]
 sample_prior <- opts[["sample-prior"]]
 sero <- opts[["sero"]]
 poisson <- opts[["poisson"]]
-human_only <- opts[["human-only"]]
 fix_natural_history <- opts[["fix-natural-history"]]
 fix_move <- opts[["fix-move"]]
 patch <- opts[["patch"]]
@@ -134,10 +133,6 @@ if (length(thin) == 0) thin <- 1
 if (length(model_file) == 0)
 {
     model_file_name <- paste(code_dir, "bi", "vbd", sep = "/")
-    if (human_only)
-    {
-        model_file_name <- paste(model_file_name, "human", sep = "_")
-    }
     if (patch)
     {
         model_file_name <- paste(model_file_name, "patch", sep = "_")
@@ -171,10 +166,7 @@ for (comp in names(erlang))
     }
 }
 
-if (patch)
-{
-  model$fix(p_lr_patch_yap = -2.5)
-} else
+if (!patch)
 {
   model$fix(p_p_patch_yap = 1,
             p_lr_patch_yap = 0,
