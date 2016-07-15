@@ -27,7 +27,7 @@ model vbd {
 
   param p_lm[setting] // number of female vectors per human (log base 10)
   param p_N_h[setting]
-  param p_initial_susceptible[setting,disease] // proportion initially susceptible for dengue in Yap
+  param p_initial_susceptible_yap[setting,disease] // proportion initially susceptible for dengue in Yap
 
   param p_rep[disease] // reporting rate
 
@@ -81,7 +81,7 @@ model vbd {
     p_phi_mult[disease] ~ uniform(lower = 0, upper = 1)
     // p_phi_add[disease] ~ uniform(lower = 0, upper = 5)
 
-    p_initial_susceptible[setting,disease] ~ uniform(lower = 0, upper = 1)
+    p_initial_susceptible_yap[setting,disease] ~ uniform(lower = 0, upper = 1)
 
     p_red_foi_yap ~ uniform(lower = 0, upper = 1)
     p_p_patch_yap ~ uniform(lower = 0.5, upper = 1)
@@ -90,7 +90,7 @@ model vbd {
   }
 
   sub initial {
-    S_h[patch,setting,disease] <- p_initial_susceptible[setting,disease] * p_N_h[setting] * (setting == 0 ? (patch == 0 ? p_p_patch_yap : 1 - p_p_patch_yap) : 1 - patch)
+    S_h[patch,setting,disease] <- p_N_h[setting] * (setting == 0 ? p_initial_susceptible_yap[disease] * (patch == 0 ? p_p_patch_yap : 1 - p_p_patch_yap) : 1 - patch)
     E_h[patch,setting,disease,delta_erlang_h] <- 0
     I_h[patch,setting,disease] <- 0
     R_h[patch,setting,disease] <- 0
