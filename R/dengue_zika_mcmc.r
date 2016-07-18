@@ -165,8 +165,7 @@ for (comp in names(erlang))
 if (!patch)
 {
   model$fix(p_p_patch_yap = 1,
-            p_lr_patch_yap = 0,
-            e_patch = 1)
+            p_red_foi_yap = 1)
 }
 
 if (!beta)
