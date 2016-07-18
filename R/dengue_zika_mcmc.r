@@ -11,13 +11,12 @@ Usage: dengue_zika_mcmc.r [options]
 Options:
   -o --output=<output.file>         output file name
   -n --nsamples=<samples>           number of samples to obtain
-  -c --nparticles=<num.particles>   number of particles
   -p --pre_samples=<pre.samples>    number of preparatory samples to obtain
   -e --seed=<seed>                  random seed
   -t --threads=<num.threads>        number of threads
   -w --erlang-v=<erlang.v>          number of Erlang compartments in the vector
   -u --erlang-h=<erlang.h>          number of Erlang compartments in the human
-  -d --beta                         include stochastic beta
+  -d --earlier-death                earlier death of mosquitoes
   -i --thin=<thin>                  thin
   -r --sample-prior                 sample prior
   -l --sample-observations          sample observations
@@ -28,7 +27,6 @@ Options:
   -k --keep                         keep working directory
   -f --force                        force overwrite
   -q --patch                        patch model
-  -a --poisson                      poisson noise
   -y --setting=<setting>            only fit this setting
   -z --disease=<disease>            only fit this disease
   -v --verbose                      be verbose
@@ -45,18 +43,16 @@ if (opts[["help"]])
 
 ## read command line arguments
 num_samples <- as.integer(opts[["nsamples"]])
-num_particles <- as.integer(opts[["nparticles"]])
 pre_samples <- as.integer(opts[["pre_samples"]])
 num_threads <- as.integer(opts[["threads"]])
 seed <- as.integer(opts[["seed"]])
 thin <- as.integer(opts[["thin"]])
 output_file_name <- opts[["output"]]
 model_file <- opts[["model-file"]]
-beta <- opts[["beta"]]
+earlier_death <- opts[["earlier_death"]]
 sample_obs <- opts[["sample-observations"]]
 sample_prior <- opts[["sample-prior"]]
 sero <- opts[["sero"]]
-poisson <- opts[["poisson"]]
 fix_natural_history <- opts[["fix-natural-history"]]
 fix_move <- opts[["fix-move"]]
 patch <- opts[["patch"]]
@@ -66,8 +62,6 @@ verbose <- opts[["verbose"]]
 par_nb <- as.integer(opts[["parallel-number"]])
 analysis_setting <- opts[["setting"]]
 analysis_disease <- opts[["disease"]]
-
-stoch <- beta
 
 library('dplyr')
 library('tidyr')
@@ -168,16 +162,16 @@ if (!patch)
             p_red_foi_yap = 1)
 }
 
-if (!beta)
-{
-  model$fix(n_transmission = 1,
-            p_vol_transmission = 0)
-}
-
 if (fix_natural_history)
 {
     p_tau <- 7
-    p_d_life_m <- 2
+    if (earlier_death)
+    {
+        p_d_life_m <- 1
+    } else
+    {
+        p_d_life_m <- 2
+    }
     model$fix(p_d_life_m = p_d_life_m,
               p_tau = p_tau)
 }
@@ -188,11 +182,6 @@ if (fix_move)
     p_red_foi_yap <- 0.076
     model$fix(p_p_patch_yap = p_p_patch_yap,
               p_red_foi_yap = p_red_foi_yap)
-}
-
-if (poisson)
-{
-    model$fix(p_phi_mult = 1)
 }
 
 ## set output file name
@@ -206,7 +195,7 @@ if (length(output_file_name) == 0)
             filebase <- paste(filebase, paste0(comp, opts[[erlang[comp]]]), sep = "_")
         }
     }
-    output_file_name <- paste0(data_dir, "/", filebase, ifelse(fix_move, "_move", ""), ifelse(beta, "_beta", ""), ifelse(poisson, "_poisson", ""), ifelse(sero, "_sero", ""), ifelse(patch, "_patch", ""), ifelse(fix_natural_history, "_fnh", ""), ifelse(nrow(analyses) == 1, paste("", as.character(analyses[1, "setting"]), as.character(analyses[1, "disease"]), sep = "_"), ""),  ifelse(length(par_nb) == 0, "", paste0("_", par_nb)))
+    output_file_name <- paste0(data_dir, "/", filebase, ifelse(fix_move, "_move", ""), ifelse(sero, "_sero", ""), ifelse(patch, "_patch", ""), ifelse(fix_natural_history, "_fnh", ""), ifelse(nrow(analyses) == 1, paste("", as.character(analyses[1, "setting"]), as.character(analyses[1, "disease"]), sep = "_"), ""),  ifelse(length(par_nb) == 0, "", paste0("_", par_nb)))
 }
 cat("Output: ",  output_file_name, "\n")
 
@@ -259,18 +248,7 @@ cat(date(), "Sampling from the posterior distribution with prior = proposal.\n")
 libbi_seed <- ceiling(runif(1, -1, .Machine$integer.max - 1))
 global_options[["seed"]] <- libbi_seed
 global_options[["nsamples"]] <- pre_samples
-if (length(num_particles) > 0)
-{
-  global_options[["nparticles"]] <- num_particles
-} else
-{
-  ## number of data points as number of particles
-  if (stoch)
-  {
-    ## global_options[["nparticles"]] <- 2**floor(log(nrow(dt_ts), 2))
-    global_options[["nparticles"]] <- 4
-  }
-}
+global_options[["nparticles"]] <- 1
 obs <- list(Cases = dt_ts)
 if (sero)
 {
@@ -291,34 +269,7 @@ bi_wrapper_prior <- libbi(model = model_prior, run = TRUE,
 
 cat(date(), "Running the model.\n")
 
-if (stoch)
-{
-    if (length(num_particles) > 0)
-    {
-        bi_wrapper_adapted <- bi_wrapper_prior
-    } else
-    {
-        cat(date(), "Starting adaptation of the number of particles.\n")
-        bi_wrapper_adapted <- adapt_mcmc(bi_wrapper_prior, min = 0.1, max = 0.5)
-        bi_wrapper_particle_adapted <-
-            adapt_particles(bi_wrapper_stoch,
-                            ## min = bi_wrapper_stoch$global_options[["nparticles"]]
-                            min = 1024, max = 33000
-                            )
-        bi_wrapper_adapted <- bi_wrapper_particle_adapted
-    }
-} else {
-  bi_wrapper_adapted <- bi_wrapper_prior
-}
-
-
-if ("nparticles" %in% names(bi_wrapper_adapted$global_options))
-{
-    nparticles <- bi_wrapper_adapted$global_options[["nparticles"]]
-} else
-{
-    nparticles <- 1
-}
+bi_wrapper_adapted <- bi_wrapper_prior
 
 if (length(model_file) == 0)
 {
@@ -371,8 +322,7 @@ burn <- floor(num_samples / thin * 0.25)
 dic <- compute_DIC(read = res, burn = burn)
 cat("DIC: ", dic, "\n")
 
-saveRDS(list(dic = dic, nparticles = nparticles),
-        file = paste0(output_file_name, "_dic.rds"))
+saveRDS(dic, file = paste0(output_file_name, "_dic.rds"))
 
 if (length(par_nb) == 0)
 {
@@ -487,10 +437,10 @@ if (length(par_nb) == 0)
             spread(state, value)
 
         rep_params <- params_all %>%
-            filter(state %in% c("p_rep", "p_phi_mult", "p_phi_add")) %>%
+            filter(state %in% c("p_rep")) %>%
             spread(state, value)
 
-        for (rep_param in setdiff(c("p_rep", "p_phi_mult"), colnames(rep_params)))
+        for (rep_param in setdiff(c("p_rep"), colnames(rep_params)))
         {
             rep_params[[rep_param]] <- 1
         }
@@ -512,7 +462,7 @@ if (length(par_nb) == 0)
         res$Cases <- states %>%
             mutate(value = rtruncnorm(n = nrow(states), a = 0,
                                       mean = p_rep * Z_h,
-                                      sd = sqrt((p_rep * Z_h + 1) / p_phi_mult)))
+                                      sd = sqrt((p_rep * Z_h + 1))))
 
         ## manipulate data to match sampled observations
         data <- dt_ts %>%

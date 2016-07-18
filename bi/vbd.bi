@@ -39,9 +39,6 @@ model vbd {
 
   param p_t_start[setting,disease]
 
-  param p_phi_mult[disease]
-  // param p_phi_add[disease]
-
   // humans
   state S_h[patch,setting,disease](has_output = 0) // susceptible
   state E_h[patch,setting,disease,delta_erlang_h](has_output = 0) // incubating
@@ -63,11 +60,13 @@ model vbd {
   obs Sero[obs_id]
 
   sub parameter {
-    p_d_inc_h[disease] ~ log_gaussian(mean = log(5.9/7), std = 0.07/7)
-    p_d_inc_m[disease] ~ log_gaussian(mean = log(9.8/7), std = 0.36/7)
+    // 95% approximately 2 * std away from the mean
+    // 1.5 see Ferguson et al., science
+    p_d_inc_h[disease] ~ log_gaussian(mean = log((5.9 - 1.5)/7), std = 0.25/7)
+    p_d_inc_m[disease] ~ log_gaussian(mean = log(6.5/7), std = 1.15/7)
 
-    p_d_life_m ~ uniform(lower = 2, upper = 4)
-    p_d_inf_h[disease] ~ truncated_gaussian(mean = 4.5/7, std = 1.78/7, lower = 0)
+    p_d_life_m ~ uniform(lower = 1, upper = 4)
+    p_d_inf_h[disease] ~ truncated_gaussian(mean = 4.5/7, std = 1.75/7, lower = 0)
 
     p_rep[disease] ~ uniform(lower = 0, upper = 1)
 
@@ -77,9 +76,6 @@ model vbd {
     p_lm[setting] ~ uniform(lower = -1, upper = 2)
     p_tau[setting] ~ uniform(lower = 0.3 * 7, upper = 1 * 7)
     p_t_start[setting,disease] ~ uniform(lower = 0, upper = 9)
-
-    p_phi_mult[disease] ~ uniform(lower = 0, upper = 1)
-    // p_phi_add[disease] ~ uniform(lower = 0, upper = 5)
 
     p_initial_susceptible_yap[disease] ~ uniform(lower = 0, upper = 1)
 
@@ -155,7 +151,7 @@ model vbd {
   }
 
   sub observation {
-    Cases[obs_id] ~ truncated_gaussian(mean = p_rep[obs_id / 2] * (Z_h[0,obs_id % 2,obs_id / 2] + Z_h[1,obs_id % 2,obs_id / 2]), std = max(sqrt(p_rep[obs_id / 2] * (Z_h[0,obs_id % 2,obs_id / 2] + Z_h[1,obs_id % 2,obs_id / 2]) / p_phi_mult[obs_id / 2]), 1), lower = 0)
+    Cases[obs_id] ~ truncated_gaussian(mean = p_rep[obs_id / 2] * (Z_h[0,obs_id % 2,obs_id / 2] + Z_h[1,obs_id % 2,obs_id / 2]), std = max(sqrt(p_rep[obs_id / 2] * (Z_h[0,obs_id % 2,obs_id / 2] + Z_h[1,obs_id % 2,obs_id / 2])), 1), lower = 0)
     Sero[obs_id] ~ gaussian(mean = (R_h[0,obs_id % 2,obs_id / 2] + R_h[1,obs_id % 2,obs_id / 2]) / p_N_h[obs_id % 2], std = 0.09 / 3.98)
   }
 
