@@ -62,8 +62,8 @@ model vbd {
   sub parameter {
     // 95% approximately 2 * std away from the mean
     // 1.5 see Ferguson et al., science
-    p_d_inc_h[disease] ~ log_gaussian(mean = log((5.9 - 1.5)/7), std = 0.25/7)
-    p_d_inc_m[disease] ~ log_gaussian(mean = log(6.5/7), std = 1.15/7)
+    p_d_inc_h[disease] ~ truncated_gaussian(mean = (5.9 - 1.5)/7, std = 0.25/7)
+    p_d_inc_m[disease] ~ truncated_gaussian(mean = 6.5/7, std = 1.15/7)
 
     p_d_life_m ~ uniform(lower = 1, upper = 4)
     p_d_inf_h[disease] ~ truncated_gaussian(mean = 4.5/7, std = 1.75/7, lower = 0)
