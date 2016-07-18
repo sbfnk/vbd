@@ -49,7 +49,7 @@ seed <- as.integer(opts[["seed"]])
 thin <- as.integer(opts[["thin"]])
 output_file_name <- opts[["output"]]
 model_file <- opts[["model-file"]]
-earlier_death <- opts[["earlier_death"]]
+earlier_death <- opts[["earlier-death"]]
 sample_obs <- opts[["sample-observations"]]
 sample_prior <- opts[["sample-prior"]]
 sero <- opts[["sero"]]
