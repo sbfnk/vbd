@@ -23,8 +23,6 @@ model vbd {
 
   param p_tau[setting]
 
-  param p_vol_transmission[setting]
-
   param p_lm[setting] // number of female vectors per human (log base 10)
   param p_N_h[setting]
   param p_initial_susceptible_yap[disease] // proportion initially susceptible for dengue in Yap
@@ -54,16 +52,14 @@ model vbd {
   state next_obs[setting,disease](has_output = 0) // time of next observation
   state started[setting,disease](has_output = 0) // outbreak start switch
 
-  noise n_transmission[setting,disease](has_output = 0)
-
   obs Cases[obs_id]
   obs Sero[obs_id]
 
   sub parameter {
     // 95% approximately 2 * std away from the mean
     // 1.5 see Ferguson et al., science
-    p_d_inc_h[disease] ~ truncated_gaussian(mean = (5.9 - 1.5)/7, std = 0.25/7)
-    p_d_inc_m[disease] ~ truncated_gaussian(mean = 6.5/7, std = 1.15/7)
+    p_d_inc_h[disease] ~ truncated_gaussian(mean = (5.9 - 1.5)/7, std = 0.25/7, lower = 0)
+    p_d_inc_m[disease] ~ truncated_gaussian(mean = 6.5/7, std = 1.15/7, lower = 0)
 
     p_d_life_m ~ uniform(lower = 1, upper = 4)
     p_d_inf_h[disease] ~ truncated_gaussian(mean = 4.5/7, std = 1.75/7, lower = 0)
@@ -81,8 +77,6 @@ model vbd {
 
     p_red_foi_yap ~ uniform(lower = 0, upper = 1)
     p_p_patch_yap ~ uniform(lower = 0.5, upper = 1)
-
-    p_vol_transmission[setting] ~ uniform(lower = 0, upper = 3)
   }
 
   sub initial {
@@ -106,14 +100,12 @@ model vbd {
     Z_h[patch,setting,disease] <- (t_next_obs > next_obs[setting,disease] ? 0 : Z_h[patch,setting,disease])
     next_obs[setting,disease] <- (t_next_obs > next_obs[setting,disease] ? t_next_obs : next_obs[setting,disease])
 
-    n_transmission[setting,disease] ~ gamma(shape = pow(10, p_vol_transmission[setting]), scale = 1 / pow(10, p_vol_transmission[setting]))
-
     ode {
       dS_h[patch,setting,disease]/dt =
-      - (p_tau[setting] * p_b_h[disease] * pow(10, p_lm[setting])) * I_m[patch,setting,disease] * S_h[patch,setting,disease] * n_transmission[setting,disease]
+      - (p_tau[setting] * p_b_h[disease] * pow(10, p_lm[setting])) * I_m[patch,setting,disease] * S_h[patch,setting,disease]
 
       dE_h[patch,setting,disease,delta_erlang_h]/dt =
-      + (delta_erlang_h == 0 ? (p_tau[setting] * p_b_h[disease] * pow(10, p_lm[setting])) * I_m[patch,setting,disease] * S_h[patch,setting,disease] * n_transmission[setting,disease] : e_delta_h * (1 / p_d_inc_h[disease]) * E_h[patch,setting,disease,delta_erlang_h - 1])
+      + (delta_erlang_h == 0 ? (p_tau[setting] * p_b_h[disease] * pow(10, p_lm[setting])) * I_m[patch,setting,disease] * S_h[patch,setting,disease] : e_delta_h * (1 / p_d_inc_h[disease]) * E_h[patch,setting,disease,delta_erlang_h - 1])
       - e_delta_h * (1 / p_d_inc_h[disease]) * E_h[patch,setting,disease,delta_erlang_h]
 
       dI_h[patch,setting,disease]/dt =
