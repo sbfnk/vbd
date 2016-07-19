@@ -6,21 +6,23 @@ library('tidyr')
 library('msm')
 
 p_tau <- 7
-p_d_life_m <- 2
 
 output_dir <- path.expand("~/Data/Zika")
 
-models <- c("vbd_fnh_earlier_fais_dengue",
+models <- c("vbd_sero_fnh_yap_zika",
             "vbd_sero_fnh_earlier_yap_zika",
-            "vbd_sero_patch_fnh",
-            "vbd_sero_patch_fnh_yap_dengue",
-            "vbd_fnh_fais_dengue",
-            "vbd_sero_fnh_yap_dengue",
-            "vbd_sero_patch_fnh_earlier_yap_dengue",
             "vbd_sero_patch_fnh_yap_zika",
+            "vbd_sero_patch_fnh_earlier_yap_zika",
+            "vbd_fnh_fais_dengue",
+            "vbd_fnh_earlier_fais_dengue",
+            "vbd_sero_fnh_yap_dengue",
             "vbd_sero_fnh_earlier_yap_dengue",
-            "vbd_sero_fnh_yap_zika",
-            "vbd_sero_patch_fnh_earlier_yap_zika")
+            "vbd_sero_patch_fnh_yap_dengue",
+            "vbd_sero_patch_fnh_earlier_yap_dengue",
+            "vbd_sero_fnh",
+            "vbd_sero_fnh_earlier",
+            "vbd_sero_patch_fnh",
+            "vbd_sero_patch_fnh_earlier")
 
 traces <- list()
 bim <- list()
@@ -98,6 +100,14 @@ for (model in models)
                   filter(!is.na(setting)),
                   bind_rows(params_setting))
 
+        if (grepl("earlier", model))
+        {
+            p_d_life_m <- 1
+        } else
+        {
+            p_d_life_m <- 2
+        }
+
         r0 <- params_all %>%
             spread(state, value) %>%
             mutate(R0 = (p_tau * p_d_life_m)**2 * 
@@ -118,10 +128,10 @@ for (model in models)
             spread(state, value)
 
         rep_params <- params_all %>%
-            filter(state %in% c("p_rep", "p_phi_mult", "p_phi_add")) %>%
+            filter(state %in% c("p_rep")) %>%
             spread(state, value)
 
-        for (rep_param in setdiff(c("p_rep", "p_phi_mult"), colnames(rep_params)))
+        for (rep_param in setdiff(c("p_rep"), colnames(rep_params)))
         {
             rep_params[[rep_param]] <- 1
         }
@@ -141,9 +151,12 @@ for (model in models)
             filter(obs_id %in% dt_ts$obs_id)
 
         l$Cases <- states %>%
-            mutate(value = rtnorm(n = nrow(states), lower = 0,
-                                  mean = p_rep * Z_h,
-                                  sd = sqrt((p_rep * Z_h + 1) / p_phi_mult)))
+            mutate(mean = p_rep * Z_h,
+                   sd = sqrt(p_rep * Z_h),
+                   sd = ifelse(sd < 1, 1, sd), 
+                   value = rtnorm(n = nrow(states), lower = 0,
+                                  mean = mean, 
+                                  sd = sd)) 
 
         traces[[model]] <- l
 
