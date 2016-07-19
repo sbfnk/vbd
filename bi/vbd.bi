@@ -1,16 +1,11 @@
 model vbd {
 
-  const e_delta_h = 1
-  const e_delta_m = 1
-
   const e_setting = 2 // 0 = yap, 1 = fais
   const e_disease = 2 // 0 = dengue, 1 = zika
   const e_obs_id = 3 // 0 = yap/dengue, 1 = fais/dengue, 2 = yap/zika
                      // setting = obs_id % 2, disease = obs_id / 2
   const e_patch = 2 // 2 patches
 
-  dim delta_erlang_h(e_delta_h)
-  dim delta_erlang_m(e_delta_m)
   dim setting(e_setting)
   dim disease(e_disease)
   dim obs_id(e_obs_id)
@@ -39,14 +34,14 @@ model vbd {
 
   // humans
   state S_h[patch,setting,disease](has_output = 0) // susceptible
-  state E_h[patch,setting,disease,delta_erlang_h](has_output = 0) // incubating
+  state E_h[patch,setting,disease](has_output = 0) // incubating
   state I_h[patch,setting,disease](has_output = 0) // infectious
   state R_h[patch,setting,disease] // recovered
   state Z_h[patch,setting,disease] // incidence
 
   // vectors
   state S_m[patch,setting,disease](has_output = 0) // susceptible
-  state E_m[patch,setting,disease,delta_erlang_m](has_output = 0) // incubating
+  state E_m[patch,setting,disease](has_output = 0) // incubating
   state I_m[patch,setting,disease](has_output = 0) // infectious
 
   state next_obs[setting,disease](has_output = 0) // time of next observation
@@ -81,11 +76,11 @@ model vbd {
 
   sub initial {
     S_h[patch,setting,disease] <- p_N_h[setting] * (setting == 0 ? p_initial_susceptible_yap[disease] * (patch == 0 ? p_p_patch_yap : 1 - p_p_patch_yap) : 1 - patch)
-    E_h[patch,setting,disease,delta_erlang_h] <- 0
+    E_h[patch,setting,disease] <- 0
     I_h[patch,setting,disease] <- 0
     R_h[patch,setting,disease] <- 0
     Z_h[patch,setting,disease] <- 0
-    E_m[patch,setting,disease,delta_erlang_m] <- 0
+    E_m[patch,setting,disease] <- 0
     S_m[patch,setting,disease] <- 1
     I_m[patch,setting,disease] <- 0
     next_obs[setting,disease] <- 0
@@ -104,12 +99,12 @@ model vbd {
       dS_h[patch,setting,disease]/dt =
       - (p_tau[setting] * p_b_h[disease] * pow(10, p_lm[setting])) * I_m[patch,setting,disease] * S_h[patch,setting,disease]
 
-      dE_h[patch,setting,disease,delta_erlang_h]/dt =
-      + (delta_erlang_h == 0 ? (p_tau[setting] * p_b_h[disease] * pow(10, p_lm[setting])) * I_m[patch,setting,disease] * S_h[patch,setting,disease] : e_delta_h * (1 / p_d_inc_h[disease]) * E_h[patch,setting,disease,delta_erlang_h - 1])
-      - e_delta_h * (1 / p_d_inc_h[disease]) * E_h[patch,setting,disease,delta_erlang_h]
+      dE_h[patch,setting,disease]/dt =
+      + p_tau[setting] * p_b_h[disease] * pow(10, p_lm[setting])) * I_m[patch,setting,disease] * S_h[patch,setting,disease]
+      - (1 / p_d_inc_h[disease]) * E_h[patch,setting,disease]
 
       dI_h[patch,setting,disease]/dt =
-      + e_delta_h * (1 / p_d_inc_h[disease]) * E_h[patch,setting,disease,e_delta_h - 1]
+      + (1 / p_d_inc_h[disease]) * E_h[patch,setting,disease]
       - (1 / p_d_inf_h[disease]) * I_h[patch,setting,disease]
 
 
@@ -117,20 +112,20 @@ model vbd {
       + (1 / p_d_inf_h[disease]) * I_h[patch,setting,disease]
 
       dZ_h[patch,setting,disease]/dt =
-      + e_delta_h * (1 / p_d_inc_h[disease]) * E_h[patch,setting,disease,e_delta_h - 1]
+      + (1 / p_d_inc_h[disease]) * E_h[patch,setting,disease]
 
       dS_m[patch,setting,disease]/dt =
       + r_births_m
       - p_tau[setting] * p_b_m[disease] * (I_h[patch,setting,disease] + (setting == 0 ? p_red_foi_yap : 1) * I_h[1 - patch,setting,disease]) / p_N_h[setting] * S_m[patch,setting,disease]
       - r_death_m * S_m[patch,setting,disease]
 
-      dE_m[patch,setting,disease,delta_erlang_m]/dt =
-      + (delta_erlang_m == 0 ? p_tau[setting] * p_b_m[disease] * (I_h[patch,setting,disease] + (setting == 0 ? p_red_foi_yap : 1) * I_h[1 - patch,setting,disease]) / p_N_h[setting] * S_m[patch,setting,disease] : e_delta_m * (1 / p_d_inc_m[disease]) * E_m[patch,setting,disease,delta_erlang_m - 1])
-      - e_delta_m * (1 / p_d_inc_m[disease]) * E_m[patch,setting,disease,delta_erlang_m]
-      - r_death_m * E_m[patch,setting,disease,delta_erlang_m]
+      dE_m[patch,setting,disease]/dt =
+      + p_tau[setting] * p_b_m[disease] * (I_h[patch,setting,disease] + (setting == 0 ? p_red_foi_yap : 1) * I_h[1 - patch,setting,disease]) / p_N_h[setting] * S_m[patch,setting,disease]
+      - (1 / p_d_inc_m[disease]) * E_m[patch,setting,disease]
+      - r_death_m * E_m[patch,setting,disease]
 
       dI_m[patch,setting,disease]/dt =
-      + e_delta_m * (1 / p_d_inc_m[disease]) * E_m[patch,setting,disease,e_delta_m - 1]
+      + (1 / p_d_inc_m[disease]) * E_m[patch,setting,disease]
       - r_death_m * I_m[patch,setting,disease]
     }
 

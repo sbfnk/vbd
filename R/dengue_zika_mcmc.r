@@ -14,19 +14,17 @@ Options:
   -p --pre_samples=<pre.samples>    number of preparatory samples to obtain
   -e --seed=<seed>                  random seed
   -t --threads=<num.threads>        number of threads
-  -w --erlang-v=<erlang.v>          number of Erlang compartments in the vector
-  -u --erlang-h=<erlang.h>          number of Erlang compartments in the human
-  -d --earlier-death                earlier death of mosquitoes
   -i --thin=<thin>                  thin
   -r --sample-prior                 sample prior
   -l --sample-observations          sample observations
+  -d --earlier-death                earlier death of mosquitoes
   -s --sero                         include sero data
+  -q --patch                        patch model
   -g --fix-move                     fix movement
   -x --fix-natural-history          fix the natural history of the mosquito
   -m --model-file=<model.file>      given model file (means there will be no adaptation step)
   -k --keep                         keep working directory
   -f --force                        force overwrite
-  -q --patch                        patch model
   -y --setting=<setting>            only fit this setting
   -z --disease=<disease>            only fit this disease
   -v --verbose                      be verbose
@@ -143,19 +141,6 @@ if (verbose) ## all states
   model$update_lines(no_output, updated_lines)
 }
 
-## update model lines for requested number of Erlang compartments
-erlang <- c(h = "erlang-h", m = "erlang-v")
-
-for (comp in names(erlang))
-{
-    if (length(opts[[erlang[comp]]]) > 0)
-    {
-        fix_opt <- list(opts[[erlang[comp]]])
-        names(fix_opt) <- paste0("e_delta_", comp)
-        do.call(model$fix, fix_opt)
-    }
-}
-
 if (!patch)
 {
   model$fix(p_p_patch_yap = 1,
@@ -188,13 +173,6 @@ if (fix_move)
 if (length(output_file_name) == 0)
 {
     filebase <- "vbd"
-    for (comp in names(erlang))
-    {
-        if (length(opts[[erlang[comp]]]) > 0)
-        {
-            filebase <- paste(filebase, paste0(comp, opts[[erlang[comp]]]), sep = "_")
-        }
-    }
     output_file_name <- paste0(data_dir, "/", filebase, ifelse(fix_move, "_move", ""), ifelse(sero, "_sero", ""), ifelse(patch, "_patch", ""), ifelse(fix_natural_history, "_fnh", ""), ifelse(earlier_death, "_earlier", ""), ifelse(nrow(analyses) == 1, paste("", as.character(analyses[1, "setting"]), as.character(analyses[1, "disease"]), sep = "_"), ""),  ifelse(length(par_nb) == 0, "", paste0("_", par_nb)))
 }
 cat("Output: ",  output_file_name, "\n")
