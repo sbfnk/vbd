@@ -20,6 +20,7 @@ Options:
   -d --earlier-death                earlier death of mosquitoes
   -s --sero                         include sero data
   -q --patch                        patch model
+  -u --reverse                      reverse the patches between zika and dengue
   -g --fix-move                     fix movement
   -x --fix-natural-history          fix the natural history of the mosquito
   -m --model-file=<model.file>      given model file (means there will be no adaptation step)
@@ -54,6 +55,7 @@ sero <- opts[["sero"]]
 fix_natural_history <- opts[["fix-natural-history"]]
 fix_move <- opts[["fix-move"]]
 patch <- opts[["patch"]]
+reverse <- opts[["reverse"]]
 force <- opts[["force"]]
 keep <- opts[["keep"]]
 verbose <- opts[["verbose"]]
@@ -163,17 +165,25 @@ if (fix_natural_history)
 
 if (fix_move)
 {
-    p_p_patch_yap <- 0.64
-    p_red_foi_yap <- 0.076
+    p_p_patch_yap <- 5.674918e-01
+    p_red_foi_yap <- 3.548147e-03
     model$fix(p_p_patch_yap = p_p_patch_yap,
               p_red_foi_yap = p_red_foi_yap)
+}
+
+if (reverse)
+{
+    initial_line <- grep("^[[:space:]]*S_h\\[patch", model$get_lines())
+    new_line <- sub("patch == 0", "(patch == 0 && disease == 0)",
+                    model$get_lines()[initial_line])
+    model$update_lines(initial_line, new_line)
 }
 
 ## set output file name
 if (length(output_file_name) == 0)
 {
     filebase <- "vbd"
-    output_file_name <- paste0(data_dir, "/", filebase, ifelse(fix_move, "_move", ""), ifelse(sero, "_sero", ""), ifelse(patch, "_patch", ""), ifelse(fix_natural_history, "_fnh", ""), ifelse(earlier_death, "_earlier", ""), ifelse(nrow(analyses) == 1, paste("", as.character(analyses[1, "setting"]), as.character(analyses[1, "disease"]), sep = "_"), ""),  ifelse(length(par_nb) == 0, "", paste0("_", par_nb)))
+    output_file_name <- paste0(data_dir, "/", filebase, ifelse(fix_move, "_move", ""), ifelse(sero, "_sero", ""), ifelse(patch, "_patch", ""), ifelse(reverse, "_reverse", ""), ifelse(fix_natural_history, "_fnh", ""), ifelse(earlier_death, "_earlier", ""), ifelse(nrow(analyses) == 1, paste("", as.character(analyses[1, "setting"]), as.character(analyses[1, "disease"]), sep = "_"), ""),  ifelse(length(par_nb) == 0, "", paste0("_", par_nb)))
 }
 cat("Output: ",  output_file_name, "\n")
 
