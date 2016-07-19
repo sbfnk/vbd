@@ -4,6 +4,7 @@ library('coda')
 library('dplyr')
 library('tidyr')
 library('msm')
+library('cowplot')
 
 p_tau <- 7
 
@@ -24,6 +25,8 @@ models <- c("vbd_sero_fnh_yap_zika",
             "vbd_sero_patch_fnh",
             "vbd_sero_patch_fnh_earlier")
 
+obs_id_levels <- c("yap_dengue", "fais_dengue", "yap_zika")
+
 traces <- list()
 bim <- list()
 params <- list()
@@ -31,8 +34,10 @@ params <- list()
 for (model in models)
 {
 
+    cat(date(), model, "\n")
     mcmc_pattern <- paste0(model, "_[0-9]+")
     m <- merge_parallel_runs(output_dir, mcmc_pattern, concatenate = TRUE)
+    cat(date(), "merged\n")
     traces[[model]] <- m$traces
     bim[[model]] <- m$model
   ## l <- merge_parallel_runs(output_dir, mcmc_pattern, concatenate = FALSE)
@@ -43,6 +48,7 @@ for (model in models)
     if (length(m$traces) > 0)
     {
 
+        cat(date(), "get parameters and states\n")
         l <- lapply(names(m$traces), function(x) {
             m$traces[[x]] %>% mutate(state = x)
         })
@@ -146,60 +152,104 @@ for (model in models)
             left_join(rep_params, by = c("disease", "np", "setting")) %>%
             mutate(obs_id =
                        factor(paste(setting, disease, sep = "_"),
-                              levels = c("yap_dengue", "fais_dengue",
-                                         "yap_zika"))) %>%
-            filter(obs_id %in% dt_ts$obs_id)
+                              levels = obs_id_levels))  %>%
+            filter(!is.na(obs_id))
 
+        if (grepl("(yap|dengue)", model))
+        {
+            model_obs_id <- sub("^.*((yap|fais)_[^_]*)($|_.*$)", "\\1", model)
+            states <- states %>%
+                filter(obs_id == model_obs_id)
+        }
+
+        cat(date(), "sample\n")
         l$Cases <- states %>%
+            mutate(Z_h = ifelse(Z_h < 0, 0, Z_h)) %>%
             mutate(mean = p_rep * Z_h,
-                   sd = sqrt(p_rep * Z_h),
-                   sd = ifelse(sd < 1, 1, sd), 
-                   value = rtnorm(n = nrow(states), lower = 0,
-                                  mean = mean, 
-                                  sd = sd)) 
+                   sd = sqrt(p_rep * Z_h)) %>%
+            mutate(sd = ifelse(sd < 1, 1, sd)) %>%
+            mutate(value = rtnorm(n = nrow(states), lower = 0,
+                                  mean = mean,
+                                  sd = sd))
 
         traces[[model]] <- l
 
     }
 }
 
+
+dic <- c()
+obs <- list()
+
 m1 <- merge(data.table(traces[["vbd_fnh_fais_dengue"]]$loglikelihood)[, list(fd = value, np)],
             data.table(traces[["vbd_sero_fnh_yap_dengue"]]$loglikelihood)[, list(yd = value, np)],
             by = "np")
-
 m2 <- merge(m1, data.table(traces[["vbd_sero_fnh_yap_zika"]]$loglikelihood[, list(yz = value, np)]),
             by = "np")
 m2[, value := fd+yd+yz]
-
-compute_DIC(list(loglikelihood = m2))
+dic["separate"] <- compute_DIC(list(loglikelihood = m2))
+obs[["separate"]] <- rbind(traces[["vbd_fnh_fais_dengue"]]$Cases,
+                           traces[["vbd_sero_fnh_yap_dengue"]]$Cases, 
+                           traces[["vbd_sero_fnh_yap_zika"]]$Cases)
 
 m1 <- merge(data.table(traces[["vbd_fnh_earlier_fais_dengue"]]$loglikelihood)[, list(fd = value, np)],
             data.table(traces[["vbd_sero_fnh_earlier_yap_dengue"]]$loglikelihood)[, list(yd = value, np)],
             by = "np")
-
 m2 <- merge(m1, data.table(traces[["vbd_sero_fnh_earlier_yap_zika"]]$loglikelihood[, list(yz = value, np)]),
             by = "np")
 m2[, value := fd+yd+yz]
+dic["separate_earlier"] <- compute_DIC(list(loglikelihood = m2))
+obs[["separate_earlier"]] <-
+  rbind(traces[["vbd_fnh_earlier_fais_dengue"]]$Cases,
+        traces[["vbd_sero_fnh_earlier_yap_dengue"]]$Cases,
+        traces[["vbd_sero_fnh_earlier_yap_zika"]]$Cases)
 
-compute_DIC(list(loglikelihood = m2))
 
-m1 <- merge(data.table(traces[["vbd_patch_fnh_fais_dengue"]]$loglikelihood)[, list(fd = value, np)],
+m1 <- merge(data.table(traces[["vbd_fnh_fais_dengue"]]$loglikelihood)[, list(fd = value, np)],
             data.table(traces[["vbd_sero_patch_fnh_yap_dengue"]]$loglikelihood)[, list(yd = value, np)],
             by = "np")
-
 m2 <- merge(m1, data.table(traces[["vbd_sero_patch_fnh_yap_zika"]]$loglikelihood[, list(yz = value, np)]),
             by = "np")
 m2[, value := fd+yd+yz]
+dic["separate_patch"] <- compute_DIC(list(loglikelihood = m2))
+obs[["separate_patch"]] <-
+  rbind(traces[["vbd_fnh_fais_dengue"]]$Cases,
+        traces[["vbd_sero_patch_fnh_yap_dengue"]]$Cases,
+        traces[["vbd_sero_patch_fnh_yap_zika"]]$Cases)
 
-compute_DIC(list(loglikelihood = m2))
 
-m1 <- merge(data.table(traces[["vbd_patch_fnh_earlier_fais_dengue"]]$loglikelihood)[, list(fd = value, np)],
+m1 <- merge(data.table(traces[["vbd_fnh_earlier_fais_dengue"]]$loglikelihood)[, list(fd = value, np)],
             data.table(traces[["vbd_sero_patch_fnh_earlier_yap_dengue"]]$loglikelihood)[, list(yd = value, np)],
             by = "np")
-
 m2 <- merge(m1, data.table(traces[["vbd_sero_patch_fnh_earlier_yap_zika"]]$loglikelihood[, list(yz = value, np)]),
             by = "np")
 m2[, value := fd+yd+yz]
+dic["separate_patch_earlier"] <- compute_DIC(list(loglikelihood = m2))
+obs[["separate_patch"]] <-
+  rbind(traces[["vbd_fnh_earlier_fais_dengue"]]$Cases,
+        traces[["vbd_sero_patch_fnh_earlier_yap_dengue"]]$Cases,
+        traces[["vbd_sero_patch_fnh_earlier_yap_zika"]]$Cases)
 
-compute_DIC(list(loglikelihood = m2))
+for (model in grep(paste0("(", paste(obs_id_levels, collapse = "|"), ")"), models, value = TRUE, invert = TRUE))
+{
+    dic[model] <- compute_DIC(traces[[model]])
+    obs[[model]] <- traces[[model]]$Cases
+}
+
+p <- list()
+for (model in names(obs))
+{
+  p_obs <- plot_libbi(read = list(Cases = obs[[model]]),
+                      data = data %>% filter(value > 0),
+                      density_args = list(adjust = 2),
+                      extra.aes = list(color = "obs_id"),
+                      states = "Cases", trend = "mean", plot = FALSE,
+                      limit.to.data = TRUE)
+  p[[model]] <- p_obs$states + facet_wrap(~ obs_id, scales = "free")
+}
+
+## zika patch estimated parameters
+params[["vbd_sero_patch_fnh_yap_zika"]] %>%
+  group_by(state) %>% 
+  summarise(value = median(value))
 
