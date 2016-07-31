@@ -19,6 +19,8 @@ model vbd {
   param p_tau[setting]
 
   param p_lm[setting] // number of female vectors per human (log base 10)
+  param p_sd_lm[setting] // sd in number of vectors
+
   param p_N_h[setting]
   param p_initial_susceptible_yap[disease] // proportion initially susceptible for dengue in Yap
 
@@ -46,9 +48,12 @@ model vbd {
 
   state next_obs[setting,disease](has_output = 0) // time of next observation
   state started[setting,disease](has_output = 0) // outbreak start switch
+  state lm[patch,setting]
 
   obs Cases[obs_id]
   obs Sero[obs_id]
+
+  noise n_lm[patch,setting]
 
   sub parameter {
     // 95% approximately 2 * std away from the mean
@@ -65,6 +70,8 @@ model vbd {
     p_b_m[disease] ~ uniform(lower = 0, upper = 1)
 
     p_lm[setting] ~ uniform(lower = -1, upper = 2)
+    p_sd_lm[setting] ~ uniform(lower = 0, upper = 1)
+
     p_tau[setting] ~ uniform(lower = 0.3 * 7, upper = 1 * 7)
     p_t_start[setting,disease] ~ uniform(lower = 0, upper = 9)
 
@@ -85,6 +92,7 @@ model vbd {
     I_m[patch,setting,disease] <- 0
     next_obs[setting,disease] <- 0
     started[setting,disease] <- 0
+    lm[patch,setting] <- p_lm[setting]
   }
 
   sub transition {
@@ -92,15 +100,18 @@ model vbd {
     inline r_death_m = 1 / p_d_life_m
     inline r_births_m = 1 / p_d_life_m
 
+    n_lm[patch,setting] ~ gaussian()
+    lm[patch,setting] <- n_lm[patch,setting] * p_sd_lm[setting] + p_lm[setting]
+
     Z_h[patch,setting,disease] <- (t_next_obs > next_obs[setting,disease] ? 0 : Z_h[patch,setting,disease])
     next_obs[setting,disease] <- (t_next_obs > next_obs[setting,disease] ? t_next_obs : next_obs[setting,disease])
 
     ode {
       dS_h[patch,setting,disease]/dt =
-      - (p_tau[setting] * p_b_h[disease] * pow(10, p_lm[setting])) * I_m[patch,setting,disease] * S_h[patch,setting,disease]
+      - p_tau[setting] * p_b_h[disease] * pow(10, lm[patch,setting]) * I_m[patch,setting,disease] * S_h[patch,setting,disease]
 
       dE_h[patch,setting,disease]/dt =
-      + p_tau[setting] * p_b_h[disease] * pow(10, p_lm[setting])) * I_m[patch,setting,disease] * S_h[patch,setting,disease]
+      + p_tau[setting] * p_b_h[disease] * pow(10, lm[patch,setting]) * I_m[patch,setting,disease] * S_h[patch,setting,disease]
       - (1 / p_d_inc_h[disease]) * E_h[patch,setting,disease]
 
       dI_h[patch,setting,disease]/dt =

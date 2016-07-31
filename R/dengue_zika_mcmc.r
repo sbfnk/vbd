@@ -19,6 +19,7 @@ Options:
   -l --sample-observations          sample observations
   -d --earlier-death                earlier death of mosquitoes
   -s --sero                         include sero data
+  -c --stoch                        stochastic model
   -q --patch                        patch model
   -u --reverse                      reverse the patches between zika and dengue
   -g --fix-move                     fix movement
@@ -52,6 +53,7 @@ earlier_death <- opts[["earlier-death"]]
 sample_obs <- opts[["sample-observations"]]
 sample_prior <- opts[["sample-prior"]]
 sero <- opts[["sero"]]
+stoch <- opts[["stoch"]]
 fix_natural_history <- opts[["fix-natural-history"]]
 fix_move <- opts[["fix-move"]]
 patch <- opts[["patch"]]
@@ -149,6 +151,11 @@ if (!patch)
             p_red_foi_yap = 1)
 }
 
+if (!stoch)
+{
+  model$fix(p_sd_lm = 0)
+}
+
 if (fix_natural_history)
 {
     p_tau <- 7
@@ -236,7 +243,13 @@ cat(date(), "Sampling from the posterior distribution with prior = proposal.\n")
 libbi_seed <- ceiling(runif(1, -1, .Machine$integer.max - 1))
 global_options[["seed"]] <- libbi_seed
 global_options[["nsamples"]] <- pre_samples
-global_options[["nparticles"]] <- 1
+if (stoch)
+{
+  global_options[["nparticles"]] <- 2**floor(log2(nrow(dt_ts)))
+} else
+{
+  global_options[["nparticles"]] <- 1
+}
 obs <- list(Cases = dt_ts)
 if (sero)
 {
@@ -255,9 +268,13 @@ bi_wrapper_prior <- libbi(model = model_prior, run = TRUE,
                           working_folder = working_folder,
                           init = init, verbose = verbose)
 
-cat(date(), "Running the model.\n")
-
-bi_wrapper_adapted <- bi_wrapper_prior
+if (stoch)
+{
+  bi_wrapper_adapted <- adapt_particles(bi_wrapper_prior)
+} else
+{
+  bi_wrapper_adapted <- bi_wrapper_prior
+}
 
 if (length(model_file) == 0)
 {
