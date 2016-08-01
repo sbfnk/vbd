@@ -12,6 +12,7 @@ Options:
   -o --output=<output.file>         output file name
   -n --nsamples=<samples>           number of samples to obtain
   -p --pre_samples=<pre.samples>    number of preparatory samples to obtain
+  -c --nparticles=<particles>       number of particles
   -e --seed=<seed>                  random seed
   -t --threads=<num.threads>        number of threads
   -i --thin=<thin>                  thin
@@ -19,7 +20,7 @@ Options:
   -l --sample-observations          sample observations
   -d --earlier-death                earlier death of mosquitoes
   -s --sero                         include sero data
-  -c --stoch                        stochastic model
+  -a --stoch                        stochastic model
   -q --patch                        patch model
   -u --reverse                      reverse the patches between zika and dengue
   -g --fix-move                     fix movement
@@ -43,6 +44,7 @@ if (opts[["help"]])
 
 ## read command line arguments
 num_samples <- as.integer(opts[["nsamples"]])
+num_particles <- as.integer(opts[["nparticles"]])
 pre_samples <- as.integer(opts[["pre_samples"]])
 num_threads <- as.integer(opts[["threads"]])
 seed <- as.integer(opts[["seed"]])
@@ -245,7 +247,12 @@ global_options[["seed"]] <- libbi_seed
 global_options[["nsamples"]] <- pre_samples
 if (stoch)
 {
-  global_options[["nparticles"]] <- 2**floor(log2(nrow(dt_ts)))
+  if (length(num_particles) == 0) {
+    global_options[["nparticles"]] <- 2**floor(log2(nrow(dt_ts)))
+  } else
+  {
+    global_options[["nparticles"]] <- num_particles
+  }
 } else
 {
   global_options[["nparticles"]] <- 1
