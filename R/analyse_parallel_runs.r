@@ -9,6 +9,7 @@ library('cowplot')
 p_tau <- 7
 
 output_dir <- path.expand("~/Data/Zika")
+code_dir <- path.expand("~/code/vbd/")
 
 models <- c("vbd_sero_fnh_yap_zika",
             "vbd_sero_fnh_earlier_yap_zika",
@@ -255,17 +256,70 @@ for (model in grep(paste0("(", paste(obs_id_levels, collapse = "|"), ")"), model
     joint_params[[model]] <- params[[model]]
 }
 
+## read data
+ts <- list()
+analyses <- data.frame(setting = c("yap", "yap", "fais"), disease = c("dengue", "zika", "dengue"))
+
+for (i in 1:nrow(analyses))
+{
+    this_setting <- analyses[i, "setting"]
+    this_disease <- analyses[i, "disease"]
+    this_filename <-
+      paste(code_dir, "data",
+            paste(this_setting, this_disease, "data.rds", sep = "_"),
+            sep = "/")
+    this_ts <- readRDS(this_filename) %>%
+      mutate(setting = this_setting, disease = this_disease,
+             week = ceiling(nr / 7))
+    ts <- c(ts, list(this_ts))
+}
+
+dt_ts <- bind_rows(ts) %>%
+    group_by(week, setting, disease) %>%
+    summarize(value = sum(value)) %>%
+    ungroup() %>%
+    mutate(obs_id = factor(paste(setting, disease, sep = "_"),
+                           levels = c("yap_dengue", "fais_dengue", "yap_zika"))) %>%
+    arrange(week, obs_id) %>%
+    select(week, obs_id, value) ## %>%
+    ## complete(week, obs_id, fill = list(value = 0))
+
+data <- dt_ts %>%
+  mutate(time = week, state = "Cases")
+first_obs <- data %>%
+  filter(value > 0) %>%
+  slice(which.min(time)) %>%
+  .[["time"]]
+last_obs <- data %>%
+  filter(value > 0) %>%
+  slice(which.max(time)) %>%
+  .[["time"]]
+data <- data %>%
+  filter(time >= first_obs & time <= last_obs)
+
 p_obs <- list()
 p_r0 <- list()
+p_ll <- list()
 for (model in names(obs))
 {
+  model_name <- "vbd_sero"
+  if (grepl("patch", model)) {
+    model_name <- paste(model_name, "patch", sep = "_")
+  }
+  model_name <- paste(model_name, "fnh", sep = "_")
+  if (grepl("earlier", model)) {
+    model_name <- paste(model_name, "earlier", sep = "_")
+  }
+
   temp_plot <- plot_libbi(read = list(Cases = obs[[model]]),
-                      data = data %>% filter(value > 0),
-                      density_args = list(adjust = 2),
-                      extra.aes = list(color = "obs_id"),
-                      states = "Cases", trend = "mean", plot = FALSE,
+                          model = bim[[model_name]], 
+                          data = data %>% filter(value > 0),
+                          density_args = list(adjust = 2),
+                          extra.aes = list(color = "obs_id"),
+                          states = "Cases", trend = "mean", plot = FALSE,
                       limit.to.data = TRUE)
   p_obs[[model]] <- temp_plot$states + facet_wrap(~ obs_id, scales = "free")
+  p_ll[[model]] <- temp_plot$likelihoods 
   p_r0[[model]] <-
     ggplot(joint_params[[model]] %>% filter(state == "R0"),
            aes(x = value, color = disease, linetype = setting)) +
