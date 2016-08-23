@@ -192,7 +192,7 @@ if (reverse)
 if (length(output_file_name) == 0)
 {
     filebase <- "vbd"
-    output_file_name <- paste0(data_dir, "/", filebase, ifelse(fix_move, "_move", ""), ifelse(sero, "_sero", ""), ifelse(stoch, "_stoch", ""), ifelse(patch, "_patch", ""), ifelse(reverse, "_reverse", ""), ifelse(fix_natural_history, "_fnh", ""), ifelse(earlier_death, "_earlier", ""), ifelse(nrow(analyses) == 1, paste("", as.character(analyses[1, "setting"]), as.character(analyses[1, "disease"]), sep = "_"), ""),  ifelse(length(par_nb) == 0, "", paste0("_", par_nb)))
+    output_file_name <- paste0(data_dir, "/", filebase, ifelse(fix_move, "_move", ""), ifelse(sero, "_sero", ""), ifelse(patch, "_patch", ""), ifelse(reverse, "_reverse", ""), ifelse(fix_natural_history, "_fnh", ""), ifelse(earlier_death, "_earlier", ""), ifelse(nrow(analyses) == 1, paste("", as.character(analyses[1, "setting"]), as.character(analyses[1, "disease"]), sep = "_"), ""),  ifelse(length(par_nb) == 0, "", paste0("_", par_nb)))
 }
 cat("Output: ",  output_file_name, "\n")
 
