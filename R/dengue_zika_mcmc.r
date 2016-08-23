@@ -233,8 +233,7 @@ if (sample_prior)
                    dims = list(disease = c("dengue", "zika")),
                    init = init, verbose = verbose)
     ## reading
-    res_prior <- bi_read(prior, vars = model$get_vars("param"),
-                         verbose = verbose)
+    res_prior <- bi_read(prior, verbose = verbose)
     saveRDS(res_prior, paste(output_file_name, "prior.rds", sep = "_"))
     prior_model_file <- paste(output_file_name, "prior.bi", sep = "_")
     prior$model$write_model_file(prior_model_file)
@@ -279,7 +278,7 @@ bi_wrapper_prior <- libbi(model = model_prior, run = TRUE,
                           working_folder = working_folder,
                           init = init, verbose = verbose)
 
-if (stoch)
+if (stoch && length(num_particles) == 0)
 {
   bi_wrapper_adapted <- adapt_particles(bi_wrapper_prior)
 } else
