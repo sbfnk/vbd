@@ -264,9 +264,10 @@ if (sero)
     {
         obs[["Sero"]] <- data.frame(week = dt_ts %>% filter(obs_id == "yap_zika") %>% .$week %>% max, obs_id = "yap_zika", value = 0.73)
     }
-    initial_susceptible_parameter_line <-
-      grep("p_initial_susceptible_yap.*~", model$get_lines())
-    model$add_lines("p_initial_susceptible[1] <- 1")
+} else {
+  initial_susceptible_parameter_line <-
+    grep("p_initial_susceptible_yap.*~", model$get_lines())
+  model$add_lines("p_initial_susceptible[1] <- 1")
 }
 
 saveRDS(obs, paste(output_file_name, "obs.rds", sep = "_"))
