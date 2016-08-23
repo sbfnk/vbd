@@ -38,7 +38,7 @@ model vbd {
   state S_h[patch,setting,disease](has_output = 0) // susceptible
   state E_h[patch,setting,disease](has_output = 0) // incubating
   state I_h[patch,setting,disease](has_output = 0) // infectious
-  state R_h[patch,setting,disease] // recovered
+  state R_h[patch,setting,disease](has_output = 0) // recovered
   state Z_h[patch,setting,disease] // incidence
 
   // vectors
@@ -48,12 +48,12 @@ model vbd {
 
   state next_obs[setting,disease](has_output = 0) // time of next observation
   state started[setting,disease](has_output = 0) // outbreak start switch
-  state lm[patch,setting]
+  state lm[patch,setting](has_output = 0)
 
   obs Cases[obs_id]
   obs Sero[obs_id]
 
-  noise n_lm[patch,setting]
+  noise n_lm[patch,setting](has_output = 0)
 
   sub parameter {
     // 95% approximately 2 * std away from the mean
@@ -117,7 +117,6 @@ model vbd {
       dI_h[patch,setting,disease]/dt =
       + (1 / p_d_inc_h[disease]) * E_h[patch,setting,disease]
       - (1 / p_d_inf_h[disease]) * I_h[patch,setting,disease]
-
 
       dR_h[patch,setting,disease]/dt =
       + (1 / p_d_inf_h[disease]) * I_h[patch,setting,disease]
