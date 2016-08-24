@@ -158,14 +158,16 @@ for (model in models)
                   summarise(value = sum(value))
             }
            l$proportion_infected <- l$final_size %>%
-              left_join(l$p_N_h %>%
-                          rename(N = value) %>%
-                          select(-state)) %>%
-              left_join(l$p_initial_susceptible_yap %>%
-                          rename(init = value) %>%
-                          select(-state)) %>%
-              mutate(value = value / (N * init),
-                     state = "proportion_infected") %>%
+               left_join(l$p_N_h %>%
+                         rename(N = value) %>%
+                         select(-state)) %>%
+               left_join(l$p_initial_susceptible_yap %>%
+                         rename(init = value) %>%
+                         mutate(setting = factor("yap", levels = levels(l$final_size$setting))) %>%
+                         select(-state)) %>%
+               mutate(init = ifelse(is.na(init), 1, init),
+                      value = value / (N * init),
+                      state = "proportion_infected") %>%
               select(-N, -init)
             l$final_size <- l$final_size %>%
               left_join(l$p_N_h %>%
@@ -268,7 +270,6 @@ for (model in models)
                     select(-value) %>%
                     rename(value = density)
             }
-            l$Z_h <- NULL
             traces[[model]][[dist]] <- l
         }
     }
@@ -523,21 +524,22 @@ prior_GI <- lapply(names(prior_GI), function(x) {
 })
 prior_GI <- bind_rows(prior_GI)
 
-prior_final_size <- lapply(traces, function(x) {x[["prior"]][["final_size"]]})
-prior_final_size <- lapply(names(prior_final_size), function(x) {
-    prior_final_size[[x]] %>%
+prior_proportion_infected <- lapply(traces, function(x) {x[["prior"]][["proportion_infected"]]})
+prior_proportion_infected <- lapply(names(prior_proportion_infected), function(x) {
+    prior_proportion_infected[[x]] %>%
         mutate(model = x) %>%
         select(-state) %>%
-        rename(final_size = value)
+        rename(proportion_infected = value)
 })
-prior_final_size <- bind_rows(prior_final_size)
+prior_proportion_infected <- bind_rows(prior_proportion_infected)
 
 final_sizes <- prior_final_size %>%
     left_join(prior_R0) %>%
     left_join(prior_GI) %>%
-    left_join(prior_final_size)
+    left_join(prior_proportion_infected)
 
-p <- ggplot(final_sizes %>% filter(R0 < 20), aes(x = R0, y = final_size)) +
+p <- ggplot(final_sizes %>% filter(R0 < 20 & proportion_infected <= 1),
+            aes(x = R0, y = proportion_infected)) +
     geom_jitter()
 
 ## zika patch estimated parameters
