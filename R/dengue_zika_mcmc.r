@@ -104,7 +104,7 @@ for (i in 1:nrow(analyses))
             sep = "/")
     this_ts <- readRDS(this_filename) %>%
       mutate(setting = this_setting, disease = this_disease,
-             week = ceiling(nr / 7))
+             week = floor(nr / 7))
     ts <- c(ts, list(this_ts))
     ## set end time
     tend <- c(tend, this_ts %>% select(week) %>% max)

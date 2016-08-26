@@ -1,30 +1,31 @@
 library('RBi')
 library('RBi.helpers')
-library('coda')
 library('dplyr')
 library('tidyr')
 library('msm')
 library('cowplot')
+library('ggExtra')
+library('stringi')
 
-p_tau <- 7
+p_tau <- 7 ## fixed biting rate, 1 per day (7 per week)
 
+## set directory names for libbi output files and code
 output_dir <- path.expand("~/Data/Zika")
 code_dir <- path.expand("~/code/vbd/")
 
-models <-
-    sub("_0\\.bi$", "", list.files(path = output_dir, pattern = ".*_0\\.bi"))
-models <-
-    intersect(models,
-              c("vbd_fnh", "vbd_fnh_earlier",
-                "vbd_sero_fnh", "vbd_sero_fnh_earlier",
-                "vbd", "vbd_sero", "vbd_sero_earlier"))
+models <- c("vbd_fnh", "vbd_fnh_earlier")
 
 obs_id_levels <- c("yap_dengue", "fais_dengue", "yap_zika")
+
+data_labels <- obs_id_levels
+data_labels <- sub("^(.*)_(.*)$", "\\2 \\1", data_labels)
+data_labels <- sub(" ", " in ", stri_trans_totitle(data_labels))
+names(data_labels) <- obs_id_levels
 
 traces <- list()
 params <- list()
 priors <- list()
-bim <- list()
+bi_models <- list()
 
 for (model in models)
 {
@@ -32,15 +33,12 @@ for (model in models)
     cat(date(), model, "\n")
     traces[[model]] <- list(prior = list(), posterior = list())
     params[[model]] <- list(prior = list(), posterior = list())
-    posterior_pattern <- paste0(model, "_[0-9]+")
-    posterior <-
-        merge_parallel_runs(output_dir, posterior_pattern, concatenate = TRUE)
-    cat(date(), "merged\n")
-    traces[[model]][["posterior"]] <- posterior$traces
-    bim[[model]] <- posterior$model
-    prior_pattern <- paste0(model, "_[0-9]+_prior")
-    prior <- merge_parallel_runs(output_dir, prior_pattern, concatenate = TRUE)
-    traces[[model]][["prior"]] <- prior$traces
+    posterior <- readRDS(paste0(output_dir, "/", model, ".rds"))
+    obs <- readRDS(paste0(output_dir, "/", model, "_obs.rds"))
+    traces[[model]][["posterior"]] <- posterior
+    bi_models[[model]] <- bi_model(paste0(output_dir, "/", model, ".bi"))
+    prior <- readRDS(paste0(output_dir, "/", model, "_prior.rds"))
+    traces[[model]][["prior"]] <- prior
 
     if (length(traces[[model]][["posterior"]]) > 0)
     {
@@ -128,7 +126,7 @@ for (model in models)
                              p_d_inc_m + p_d_life_m))
             first_col <-
                 min(which(!(colnames(r0) %in% c("disease", "setting",
-                                                "patch", "np", "run"))))
+                                                "patch", "np"))))
             r0 <- r0 %>% gather(state, value, first_col:ncol(.)) %>%
                 filter(state %in% c("R0", "GI"))
 
@@ -179,13 +177,13 @@ for (model in models)
             {
                 cat(date(), "observations\n")
 
-                o <- lapply(names(posterior$obs), function(x) {
-                    posterior$obs[[x]] %>%
+                o <- lapply(names(obs), function(x) {
+                  obs[[x]] %>%
                         mutate(obs_id =
-                                   factor(obs_id, levels = obs_id_levels))  %>%
+                                 factor(obs_id, levels = obs_id_levels))  %>%
                         mutate(obs = x)
                 })
-                obs <- bind_rows(o) %>%
+                obs_states <- bind_rows(o) %>%
                     mutate(state = ifelse(obs == "Cases", "Z_h",
                                    ifelse(obs == "Sero", "final_size",
                                           NA_character_))) %>%
@@ -199,9 +197,9 @@ for (model in models)
                                           levels = obs_id_levels))
                 }
 
-                if ("Sero" %in% obs$obs)
+                if ("Sero" %in% obs_states$obs)
                 {
-                    sero_time <- obs %>%
+                    sero_time <- obs_states %>%
                         filter(obs == "Sero") %>%
                         select(time, obs_id)
                     l[["final_size"]] <- l[["final_size"]] %>%
@@ -251,7 +249,8 @@ for (model in models)
                     max(which(colnames(states) %in% c("final_size", "Z_h")))
                  obsdens <- states %>%
                     gather(state, value, first_column:last_column) %>%
-                    left_join(obs, by = c("time", "obs_id", "state")) %>%
+                   left_join(obs_states,
+                             by = c("time", "obs_id", "state")) %>%
                     filter(!is.na(data)) %>%
                     mutate(value = ifelse(value < 0, 0, value)) %>%
                     mutate(mean = ifelse(state == "Z_h", p_rep * value,
@@ -274,109 +273,11 @@ for (model in models)
             }
             traces[[model]][[dist]] <- l
         }
+        ## not fitted
+        traces[[model]][["posterior"]][["p_t_start"]] <-
+          traces[[model]][["posterior"]][["p_t_start"]] %>%
+          filter(!(disease == "zika" & setting == "fais")) 
     }
-}
-
-## saveRDS(traces, "vbd_traces.rds")
-
-dic <- c()
-waic <- c()
-obs <- list()
-joint_params <- list()
-
-## gather model strings
-model_strings <- rep("", length(obs_id_levels))
-names(model_strings) <- obs_id_levels
-separate_models <- list()
-for (earlier_string in c("", "_earlier"))
-{
-    model_strings["fais_dengue"] <-
-        paste0("vbd_fnh", earlier_string, "_fais_dengue")
-    for (patch_string in c("", "_patch"))
-    {
-        model_strings["yap_zika"] <-
-            paste0("vbd_sero", patch_string, "_fnh", earlier_string,
-                   "_yap_zika")
-        move_strings <- ""
-        if (nchar(patch_string) > 0) move_strings <- c(move_strings, "_move")
-        for (move_string in move_strings)
-        {
-            reverse_strings <- ""
-            if (nchar(move_string) > 0)
-            {
-              reverse_strings <- c(reverse_strings, "_reverse")
-            }
-            for (reverse_string in reverse_strings)
-            {
-                model_strings["yap_dengue"] <-
-                    paste0("vbd", move_string, patch_string, reverse_string,
-                           "_fnh", earlier_string, "_yap_dengue")
-                full_model_string <-
-                    paste0("vbd_sero", move_string, patch_string,
-                           reverse_string, "_fnh", earlier_string)
-                separate_models[[full_model_string]] <- model_strings
-            }
-        }
-    }
-}
-
-available_models <-
-    separate_models[sapply(separate_models, function(x) {all(x %in% models)})]
-
-for (model_name in names(available_models))
-{
-    temp_ll <- list()
-    model <- available_models[[model_name]]
-    for (ll in c("loglikelihood", "pointll"))
-    {
-        by_string <-
-            intersect(c("np", "time"),
-                      colnames(traces[[model["fais_dengue"]]][["posterior"]][[ll]]))
-        temp_traces <- list()
-        temp_traces[["fd"]] <-
-            data.table(traces[[model["fais_dengue"]]][[ll]])
-        temp_traces[["yd"]] <-
-            data.table(traces[[model["yap_dengue"]]][[ll]])
-        temp_traces[["yz"]] <-
-            data.table(traces[[model["yap_zika"]]][[ll]])
-
-        for (name in names(temp_traces))
-        {
-            setnames(temp_traces[[name]], "value", name)
-        }
-
-        temp_ll[[ll]] <-
-            merge(temp_traces[["fd"]], temp_traces[["yd"]], by = by_string)
-        temp_ll[[ll]] <-
-            merge(temp_ll[[ll]], temp_traces[["yz"]], by = by_string)
-        temp_ll[[ll]][, value := fd+yd+yz]
-    }
-    sep_name <- paste(model_name, "separate", sep = "_")
-    dic[[sep_name]] <- compute_DIC(temp_ll["loglikelihood"])
-    mean_lik <-
-        temp_ll[["pointll"]][, list(mean = mean(exp(value))), by = time]
-    lppd <- mean_lik[, sum(log(mean))]
-    var_ll <-
-        temp_ll[["pointll"]][, list(var = var(value)), by = time]
-    pwaic2 <- var_ll[, sum(var)]
-    waic[sep_name] <- -2 * (lppd - pwaic2)
-    obs[[sep_name]] <- do.call(rbind, lapply(traces[model], function(x) {
-        x[["Cases"]]
-    }))
-    joint_params[[sep_name]] <- do.call(rbind, params[model])
-}
-
-for (model in grep(paste0("(", paste(obs_id_levels, collapse = "|"), ")"), models, value = TRUE, invert = TRUE))
-{
-    dic[model] <- compute_DIC(traces[[model]])
-    mean_lik <- data.table(traces[[model]][["posterior"]][["pointll"]]) [, list(mean = mean(exp(value))), by = time]
-    lppd <- mean_lik[, sum(log(mean))]
-    var_ll <-
-        data.table(traces[[model]][["posterior"]][["pointll"]])[, list(var = var(value)), by = time]
-    pwaic2 <- var_ll[, sum(var)]
-    waic[model] <- -2 * (lppd - pwaic2)
-    obs[[model]] <- traces[[model]][["posterior"]]$Cases
-    joint_params[[model]] <- params[[model]]
 }
 
 ts <- list()
@@ -392,82 +293,126 @@ for (i in 1:nrow(analyses))
             sep = "/")
     this_ts <- readRDS(this_filename) %>%
       mutate(setting = this_setting, disease = this_disease,
-             week = ceiling(nr / 7))
+             week = floor(nr / 7))
     ts <- c(ts, list(this_ts))
 }
 
 dt_ts <- bind_rows(ts) %>%
     group_by(week, setting, disease) %>%
-    summarize(value = sum(value)) %>%
+    summarize(value = sum(value), onset_date = min(onset_date)) %>%
     ungroup() %>%
     mutate(obs_id = factor(paste(setting, disease, sep = "_"),
                            levels = c("yap_dengue", "fais_dengue", "yap_zika"))) %>%
     arrange(week, obs_id) %>%
-    select(week, obs_id, value) ## %>%
+    select(week, obs_id, value, onset_date) ## %>%
     ## complete(week, obs_id, fill = list(value = 0))
 
 data <- dt_ts %>%
-  mutate(time = week, state = "Cases")
+    rename(time = week) %>%
+    mutate(state = "Cases")
 first_obs <- data %>%
-  filter(value > 0) %>%
-  slice(which.min(time)) %>%
-  .[["time"]]
+    group_by(obs_id) %>%
+    filter(value > 0) %>%
+    slice(which.min(time)) %>%
+    select(time, obs_id) %>%
+    rename(first_obs = time)
 last_obs <- data %>%
-  filter(value > 0) %>%
-  slice(which.max(time)) %>%
-  .[["time"]]
+    group_by(obs_id) %>%
+    filter(value > 0) %>%
+    slice(which.max(time)) %>%
+    select(time, obs_id) %>%
+    rename(last_obs = time)
 data <- data %>%
-  filter(time >= first_obs & time <= last_obs)
+    left_join(first_obs, by = "obs_id") %>%
+    left_join(last_obs, by = "obs_id") %>%
+    filter(time >= first_obs & time <= last_obs) %>%
+    mutate(obs_id = factor(obs_id, labels = data_labels))
 
+## plots
 p_obs <- list()
+p_r0gi <- list()
 p_r0 <- list()
 p_r0_sqrt <- list()
 p_libbi <- list()
 p_prior <- list()
-for (model in names(obs))
-{
-  model_name <- "vbd_sero"
-  if (grepl("patch", model)) {
-    model_name <- paste(model_name, "patch", sep = "_")
-  }
-  if (grepl("stoch", model)) {
-    model_name <- paste(model_name, "stoch", sep = "_")
-  }
-  if (grepl("fnh", model)) {
-    model_name <- paste(model_name, "fnh", sep = "_")
-  }
-  if (grepl("earlier", model)) {
-    model_name <- paste(model_name, "earlier", sep = "_")
-  }
 
-  temp_plot <- plot_libbi(read = list(Cases = obs[[model]]),
-                          model = bim[[model_name]],
-                          data = data %>% filter(value > 0),
-                          density_args = list(adjust = 2),
-                          ## densities = "histogram", 
-                          extra.aes = list(color = "obs_id"),
-                          states = "Cases", trend = "mean", plot = FALSE,
-                          limit.to.data = TRUE,
-                          quantiles = c(0.5, 0.72, 0.95))
-  p_obs[[model]] <- temp_plot$states + facet_wrap(~ obs_id, scales = "free")
+labels <- c(p_d_inc_h = "italic(D)[plain(inc,H)]",
+            p_d_inc_m = "italic(D)[plain(inc,M)]",
+            p_d_inf_h = "italic(D)[plain(inf,H)]",
+            p_lm = "log[10](italic(m))",
+            p_initial_susceptible_yap = "italic(q)",
+            p_rep = "italic(r)",
+            p_b_h = "italic(b)[H]",
+            p_b_m = "italic(b)[M]",
+            p_t_start = "italic(t[0])",
+            R0 = "italic(R[0])",
+            GI = "italic(G)")
+
+for (model in models)
+{
+  max_r0 <- max(traces[[model]][["posterior"]][["R0"]]$value)
+  traces[[model]][["prior"]][["R0"]] <- traces[[model]][["prior"]][["R0"]] %>%
+    filter(value < max_r0)
+  obs <- traces[[model]][["posterior"]][["Cases"]] %>%
+    mutate(obs_id = factor(obs_id, labels = data_labels))
+  temp_plot <-
+    plot_libbi(read = list(Cases = obs),
+               model = bi_models[[model]],
+               data = data %>% filter(value > 0),
+               density_args = list(adjust = 2),
+               ## densities = "histogram", 
+               extra.aes = list(group = "obs_id"),
+               data.colour = "black", 
+               states = "Cases", trend = "mean", plot = FALSE,
+               limit.to.data = TRUE,
+               quantiles = c(0.5, 0.72, 0.95))
+  obs_states <- temp_plot$data$states %>%
+      inner_join(data %>% select(time, obs_id, onset_date), by = c("time", "obs_id"))
+  p <- ggplot(obs_states, aes(x = onset_date)) +
+      geom_point(data = data, mapping = aes(y = value)) +
+      facet_wrap(~ obs_id, scales = "free") +
+      scale_x_date(labels = scales::date_format("%e %b %Y")) +
+      theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+      facet_wrap(~ obs_id, scales = "free")
+  
+  p_obs[[model]] <- $states + facet_wrap(~ obs_id, scales = "free")
   if (model %in% names(traces))
   {
       p_libbi[[model]] <- list()
       for (type in names(traces[[model]]))
       {
-          p_libbi[[model]][[type]] <-
+        ## rename
+        param_names <- names(traces[[model]][[type]])
+
+        p_libbi[[model]][[type]] <-
               plot_libbi(read = traces[[model]][[type]],
                          prior = traces[[model]][["prior"]], 
-                         model = bim[[model_name]],
+                         model = bi_models[[model]],
                          ## density_args = list(bins = 20), 
                          ## densities = "histogram", 
                          density_args = list(adjust = 2, alpha = 0.5),
                          extra.aes = list(color = "disease",
                                           linetype = "setting"),
                          trend = "mean", plot = FALSE,
-                         quantiles = c(0.5, 0.72, 0.95))
+                         quantiles = c(0.5, 0.95),
+                         labels = labels)
       }
   }
+  p_r0gi[[model]] <-
+    plot_libbi(read = traces[[model]][[type]],
+               prior = traces[[model]][["prior"]], 
+               model = bi_models[[model]],
+               ## density_args = list(bins = 20), 
+               ## densities = "histogram", 
+               density_args = list(adjust = 2, alpha = 0.5),
+               extra.aes = list(color = "disease",
+                                linetype = "setting"),
+               trend = "mean", plot = FALSE,
+               quantiles = c(0.5, 0.95),
+               labels = labels,
+               states = c(), 
+               params = c("R0", "GI"),
+               noises = c())
   p_r0[[model]] <-
       ggplot(traces[[model]][["posterior"]][["R0"]], 
              aes(x = value, color = disease, linetype = setting)) +
@@ -480,63 +425,21 @@ for (model in names(obs))
       scale_color_brewer(palette = "Set1")
 }
 
-## plot R0 vs final size
-prior_R0 <- lapply(traces, function(x) {x[["prior"]][["R0"]]})
-prior_R0 <- lapply(names(prior_R0), function(x) {
-    prior_R0[[x]] %>%
-        mutate(model = x) %>%
-        select(-patch) %>%
-        select(-state) %>%
-        rename(R0 = value)
-})
-prior_R0 <- bind_rows(prior_R0)
-
-prior_GI <- lapply(traces, function(x) {x[["prior"]][["GI"]]})
-prior_GI <- lapply(names(prior_GI), function(x) {
-    prior_GI[[x]] %>%
-        mutate(model = x) %>%
-        select(-patch) %>%
-        select(-state) %>%
-        rename(GI = value)
-})
-prior_GI <- bind_rows(prior_GI)
-
-prior_proportion_infected <- lapply(traces, function(x) {x[["prior"]][["proportion_infected"]]})
-prior_proportion_infected <- lapply(names(prior_proportion_infected), function(x) {
-    prior_proportion_infected[[x]] %>%
-        mutate(model = x) %>%
-        select(-state) %>%
-        rename(proportion_infected = value)
-})
-prior_proportion_infected <- bind_rows(prior_proportion_infected)
-
-final_sizes <- prior_final_size %>%
-    left_join(prior_R0) %>%
-    left_join(prior_GI) %>%
-    left_join(prior_proportion_infected)
-
-p <- ggplot(final_sizes %>% filter(R0 < 20 & proportion_infected <= 1),
-            aes(x = R0, y = proportion_infected)) +
-    geom_jitter()
-
-## zika patch estimated parameters
-params[["vbd_sero_patch_fnh_yap_zika"]] %>%
-  group_by(state) %>%
-  summarise(value = median(value))
+ggsave("posterior_densities.pdf",
+       p_libbi[["vbd_fnh"]][["posterior"]]$densities,
+       width = 7.5, height = 6.5)
 
 
 all_params <- rbind(params[["vbd_fnh"]][["posterior"]] %>% spread(state, value) %>% mutate(model = "vbd_fnh"), params[["vbd_fnh_earlier"]][["posterior"]] %>% spread(state, value) %>% mutate(model = "vbd_fnh_earlier")) %>%
-    filter(!(disease == "n/a" | setting == "n/a")) %>%
-    mutate(data = paste(disease, setting, sep = "_"))
+  filter(!(disease == "n/a" | setting == "n/a")) %>%
+  mutate(data = paste(disease, setting, sep = "_")) %>%
+  filter(data != "fais_zika) %>%
+  mutate(data = factor(data, levels = unique(data), labels = data_labels)) 
 
-p <- ggplot(all_params %>% filter(setting == "fais" & disease == "dengue" & model == "vbd_sero_fnh"), aes(x = GI, y = R0)) +
-    geom_jitter() +
-    scale_color_brewer(palette = "Dark2")
-
-all_params <- params[["vbd_sero"]][["posterior"]] %>% spread(state, value) %>%
-    filter(!(disease == "n/a" | setting == "n/a")) %>%
-    mutate(data = paste(disease, setting, sep = "_"))
-
-p <- ggplot(all_params, aes(x = GI, y = R0, color = data)) +
-    geom_jitter() +
-    scale_color_brewer(palette = "Dark2")
+p <- ggplot(all_params %>% filter(data != "Zika in Fais"),
+            aes(x = GI, y = R0)) +
+  geom_jitter() +
+  facet_grid(~ data) +
+  scale_x_continuous("Generation interval (weeks)") +
+  scale_y_continuous(expression(R[0]))
+ggsave("GI_R0.pdf", p, width = 7, height = 2.3)
