@@ -17,8 +17,7 @@ models <-
     intersect(models,
               c("vbd_fnh", "vbd_fnh_earlier",
                 "vbd_sero_fnh", "vbd_sero_fnh_earlier",
-                "vbd", "vbd_earlier",
-                "vbd_sero", "vbd_sero_earlier"))
+                "vbd", "vbd_sero", "vbd_sero_earlier"))
 
 obs_id_levels <- c("yap_dengue", "fais_dengue", "yap_zika")
 
@@ -50,8 +49,7 @@ for (model in models)
             cat(date(), "get", dist, "parameters and states\n")
             l <- lapply(names(traces[[model]][[dist]]), function(x) {
               traces[[model]][[dist]][[x]] %>%
-                mutate(state = x,
-                       run = np %/% 1000)
+                mutate(state = x)
             })
 
             found_disease <- sub("^.*(zika|dengue).*$", "\\1", model)
@@ -247,8 +245,12 @@ for (model in models)
                         filter(obs_id == model_obs_id)
                 }
 
-                obsdens <- states %>%
-                    gather(state, value, final_size:Z_h) %>%
+                first_column <-
+                    min(which(colnames(states) %in% c("final_size", "Z_h")))
+                last_column <-
+                    max(which(colnames(states) %in% c("final_size", "Z_h")))
+                 obsdens <- states %>%
+                    gather(state, value, first_column:last_column) %>%
                     left_join(obs, by = c("time", "obs_id", "state")) %>%
                     filter(!is.na(data)) %>%
                     mutate(value = ifelse(value < 0, 0, value)) %>%
@@ -377,39 +379,6 @@ for (model in grep(paste0("(", paste(obs_id_levels, collapse = "|"), ")"), model
     joint_params[[model]] <- params[[model]]
 }
 
-max_traces <- list()
-for (model in names(traces))
-{
-    max_traces[[model]] <- list()
-    select_runs <- traces[[model]][["posterior"]]$loglikelihood %>%
-        group_by(run) %>%
-        summarise(value = mean(value)) %>%
-        ungroup %>%
-        mutate(deviate.max = ((value - max(value)) / max(value))) %>%
-        filter(deviate.max < 0.05) %>%
-        .$run
-    max_run <- traces[[model]][["posterior"]]$loglikelihood %>%
-        group_by(run) %>%
-        summarise(value = mean(value)) %>%
-        ungroup %>%
-        filter(value == max(value)) %>%
-        head(n = 1) %>%
-        .$run
-    ## traces[[model]][["posterior"]] <-
-    ##     lapply(traces[[model]][["posterior"]], function(x) {
-    ##         x %>%
-    ##             filter(run %in% select_runs)  %>%
-    ##             mutate(np = seq_len(n()) - 1)
-    ## })
-    max_traces[[model]][["posterior"]] <-
-        lapply(traces[[model]][["posterior"]], function(x) {
-            x %>%
-                filter(run == max_run)  %>%
-                mutate(np = seq_len(n()) - 1)
-    })
-    max_traces[[model]][["prior"]] <- traces[[model]][["prior"]]
-}
-
 ts <- list()
 analyses <- data.frame(setting = c("yap", "yap", "fais"), disease = c("dengue", "zika", "dengue"))
 
@@ -461,10 +430,12 @@ for (model in names(obs))
   if (grepl("patch", model)) {
     model_name <- paste(model_name, "patch", sep = "_")
   }
-   if (grepl("stoch", model)) {
+  if (grepl("stoch", model)) {
     model_name <- paste(model_name, "stoch", sep = "_")
   }
-  model_name <- paste(model_name, "fnh", sep = "_")
+  if (grepl("fnh", model)) {
+    model_name <- paste(model_name, "fnh", sep = "_")
+  }
   if (grepl("earlier", model)) {
     model_name <- paste(model_name, "earlier", sep = "_")
   }
@@ -473,9 +444,11 @@ for (model in names(obs))
                           model = bim[[model_name]],
                           data = data %>% filter(value > 0),
                           density_args = list(adjust = 2),
+                          ## densities = "histogram", 
                           extra.aes = list(color = "obs_id"),
                           states = "Cases", trend = "mean", plot = FALSE,
-                          limit.to.data = TRUE)
+                          limit.to.data = TRUE,
+                          quantiles = c(0.5, 0.72, 0.95))
   p_obs[[model]] <- temp_plot$states + facet_wrap(~ obs_id, scales = "free")
   if (model %in% names(traces))
   {
@@ -483,21 +456,25 @@ for (model in names(obs))
       for (type in names(traces[[model]]))
       {
           p_libbi[[model]][[type]] <-
-              plot_libbi(read = max_traces[[model]][[type]],
+              plot_libbi(read = traces[[model]][[type]],
+                         prior = traces[[model]][["prior"]], 
                          model = bim[[model_name]],
-                         density_args = list(adjust = 2), 
+                         ## density_args = list(bins = 20), 
+                         ## densities = "histogram", 
+                         density_args = list(adjust = 2, alpha = 0.5),
                          extra.aes = list(color = "disease",
                                           linetype = "setting"),
-                         trend = "mean", plot = FALSE)
-          }
+                         trend = "mean", plot = FALSE,
+                         quantiles = c(0.5, 0.72, 0.95))
+      }
   }
   p_r0[[model]] <-
-      ggplot(max_traces[[model]][["posterior"]][["R0"]], 
+      ggplot(traces[[model]][["posterior"]][["R0"]], 
              aes(x = value, color = disease, linetype = setting)) +
       geom_line(stat = "density", adjust = 2, lwd = 2) +
       scale_color_brewer(palette = "Set1")
   p_r0_sqrt[[model]] <-
-      ggplot(max_traces[[model]][["posterior"]][["R0"]], 
+      ggplot(traces[[model]][["posterior"]][["R0"]], 
              aes(x = sqrt(value), color = disease, linetype = setting)) +
       geom_line(stat = "density", adjust = 2, lwd = 2) +
       scale_color_brewer(palette = "Set1")
@@ -548,9 +525,18 @@ params[["vbd_sero_patch_fnh_yap_zika"]] %>%
   summarise(value = median(value))
 
 
-all_params <- rbind(params[["vbd_sero_fnh"]][["posterior"]] %>% spread(state, value), params[["vbd_sero_fnh_earlier"]][["posterior"]] %>% spread(state, value)) %>%
+all_params <- rbind(params[["vbd_fnh"]][["posterior"]] %>% spread(state, value) %>% mutate(model = "vbd_fnh"), params[["vbd_fnh_earlier"]][["posterior"]] %>% spread(state, value) %>% mutate(model = "vbd_fnh_earlier")) %>%
     filter(!(disease == "n/a" | setting == "n/a")) %>%
     mutate(data = paste(disease, setting, sep = "_"))
-ggplot(all_params, aes(x = GI, y = R0, color = data)) +
+
+p <- ggplot(all_params %>% filter(setting == "fais" & disease == "dengue" & model == "vbd_sero_fnh"), aes(x = GI, y = R0)) +
+    geom_jitter() +
+    scale_color_brewer(palette = "Dark2")
+
+all_params <- params[["vbd_sero"]][["posterior"]] %>% spread(state, value) %>%
+    filter(!(disease == "n/a" | setting == "n/a")) %>%
+    mutate(data = paste(disease, setting, sep = "_"))
+
+p <- ggplot(all_params, aes(x = GI, y = R0, color = data)) +
     geom_jitter() +
     scale_color_brewer(palette = "Dark2")
