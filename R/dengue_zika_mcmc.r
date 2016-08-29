@@ -194,7 +194,7 @@ if (!sero || pop)
   initial_susceptible_parameter_line <-
     grep("p_initial_susceptible_yap.*~", model$get_lines())
   model$insert_lines(after = initial_susceptible_parameter_line,
-                     "p_initial_susceptible[1] <- 1")
+                     "p_initial_susceptible_yap[1] <- 1")
 } else
 {
     model$fix(p_pop_yap = 1)
