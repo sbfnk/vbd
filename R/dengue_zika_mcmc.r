@@ -20,6 +20,7 @@ Options:
   -l --sample-observations          sample observations
   -d --earlier-death                earlier death of mosquitoes
   -s --sero                         include sero data
+  -j --pop                          reduce population size
   -a --stoch                        stochastic model
   -q --patch                        patch model
   -u --reverse                      reverse the patches between zika and dengue
@@ -42,6 +43,8 @@ if (opts[["help"]])
     exit()
 }
 
+pop_size <- c(yap = 7370, fais = 294)
+
 ## read command line arguments
 num_samples <- as.integer(opts[["nsamples"]])
 num_particles <- as.integer(opts[["nparticles"]])
@@ -55,6 +58,7 @@ earlier_death <- opts[["earlier-death"]]
 sample_obs <- opts[["sample-observations"]]
 sample_prior <- opts[["sample-prior"]]
 sero <- opts[["sero"]]
+pop <- opts[["pop"]]
 stoch <- opts[["stoch"]]
 fix_natural_history <- opts[["fix-natural-history"]]
 fix_move <- opts[["fix-move"]]
@@ -121,10 +125,6 @@ dt_ts <- bind_rows(ts) %>%
     select(week, obs_id, value) ## %>%
     ## complete(week, obs_id, fill = list(value = 0))
 
-init <- list(p_N_h = data.frame(setting = factor(c("yap", "fais"),
-                                                 levels = c("yap", "fais")),
-                                value = c(7370, 294)))
-
 if (length(thin) == 0) thin <- 1
 
 ## get model
@@ -189,14 +189,16 @@ if (reverse)
     model$update_lines(initial_line, new_line)
 }
 
-if (!sero)
+if (!sero || pop)
 {
   initial_susceptible_parameter_line <-
     grep("p_initial_susceptible_yap.*~", model$get_lines())
   model$insert_lines(after = initial_susceptible_parameter_line,
                      "p_initial_susceptible[1] <- 1")
+} else
+{
+    model$fix(p_pop_yap = 1)
 }
-
 
 ## set output file name
 if (length(output_file_name) == 0)
@@ -226,6 +228,10 @@ global_options <-  list(nsamples = pre_samples,
 if (length(seed) == 0) {
     seed <- ceiling(runif(1, -1, .Machine$integer.max - 1))
 }
+
+init <- list(p_N_h = data.frame(setting = factor(c("yap", "fais"),
+                                                 levels = c("yap", "fais")),
+                                value = pop_size[c("yap", "fais")))
 
 cat("Seed: ", seed, "\n")
 

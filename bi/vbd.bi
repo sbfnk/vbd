@@ -23,6 +23,7 @@ model vbd {
 
   param p_N_h[setting]
   param p_initial_susceptible_yap[disease] // proportion initially susceptible for dengue in Yap
+  param p_pop_yap
 
   param p_rep[disease] // reporting rate
 
@@ -76,13 +77,14 @@ model vbd {
     p_t_start[setting,disease] ~ uniform(lower = 0, upper = 9)
 
     p_initial_susceptible_yap[disease] ~ uniform(lower = 0, upper = 1)
+    p_pop_yap ~ uniform(lower = 0, upper = 1)
 
     p_red_foi_yap ~ uniform(lower = 0, upper = 1)
     p_p_patch_yap ~ uniform(lower = 0.5, upper = 1)
   }
 
   sub initial {
-    S_h[patch,setting,disease] <- p_N_h[setting] * (setting == 0 ? p_initial_susceptible_yap[disease] * (patch == 0 ? p_p_patch_yap : 1 - p_p_patch_yap) : 1 - patch)
+    S_h[patch,setting,disease] <- p_N_h[setting] * (setting == 0 ? p_initial_susceptible_yap[disease] * p_pop_yap * (patch == 0 ? p_p_patch_yap : 1 - p_p_patch_yap) : 1 - patch)
     E_h[patch,setting,disease] <- 0
     I_h[patch,setting,disease] <- 0
     R_h[patch,setting,disease] <- 0
@@ -126,11 +128,11 @@ model vbd {
 
       dS_m[patch,setting,disease]/dt =
       + r_births_m
-      - p_tau[setting] * p_b_m[disease] * (I_h[patch,setting,disease] + (setting == 0 ? p_red_foi_yap : 1) * I_h[1 - patch,setting,disease]) / p_N_h[setting] * S_m[patch,setting,disease]
+      - p_tau[setting] * p_b_m[disease] * (I_h[patch,setting,disease] + (setting == 0 ? p_red_foi_yap : 1) * I_h[1 - patch,setting,disease]) / (p_N_h[setting] * (setting == 0 ? p_pop_yap : 1)) * S_m[patch,setting,disease]
       - r_death_m * S_m[patch,setting,disease]
 
       dE_m[patch,setting,disease]/dt =
-      + p_tau[setting] * p_b_m[disease] * (I_h[patch,setting,disease] + (setting == 0 ? p_red_foi_yap : 1) * I_h[1 - patch,setting,disease]) / p_N_h[setting] * S_m[patch,setting,disease]
+      + p_tau[setting] * p_b_m[disease] * (I_h[patch,setting,disease] + (setting == 0 ? p_red_foi_yap : 1) * I_h[1 - patch,setting,disease]) / (p_N_h[setting] * (setting == 0 ? p_pop_yap : 1)) * S_m[patch,setting,disease]
       - (1 / p_d_inc_m[disease]) * E_m[patch,setting,disease]
       - r_death_m * E_m[patch,setting,disease]
 
