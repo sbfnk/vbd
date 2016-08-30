@@ -13,14 +13,16 @@ p_tau <- 7 ## fixed biting rate, 1 per day (7 per week)
 output_dir <- path.expand("~/Data/Zika")
 code_dir <- path.expand("~/code/vbd/")
 
-models <- c("vbd_fnh", "vbd_fnh_earlier")
+models <- c("vbd_fnh", "vbd_fnh_earlier", "vbd_sero_fnh", "vbd_sero_fnh_earlier", "vbd_sero_pop_fnh", "vbd_sero_pop_fnh_earlier")
 
 obs_id_levels <- c("yap_dengue", "fais_dengue", "yap_zika")
+## ordered in time
+ordered_obs_id_levels <- c("yap_zika", "fais_dengue", "yap_dengue")
 
-data_labels <- obs_id_levels
+data_labels <- ordered_obs_id_levels
 data_labels <- sub("^(.*)_(.*)$", "\\2 \\1", data_labels)
 data_labels <- sub(" ", " in ", stri_trans_totitle(data_labels))
-names(data_labels) <- obs_id_levels
+names(data_labels) <- ordered_obs_id_levels
 
 traces <- list()
 params <- list()
@@ -45,10 +47,13 @@ for (model in models)
         for (dist in c("prior", "posterior"))
         {
             cat(date(), "get", dist, "parameters and states\n")
-            l <- lapply(names(traces[[model]][[dist]]), function(x) {
-              traces[[model]][[dist]][[x]] %>%
-                mutate(state = x)
-            })
+            state_param_names <- setdiff(names(traces[[model]][[dist]]), "Cases")
+            l <- lapply(state_param_names,
+                        function(x)
+                        {
+                            traces[[model]][[dist]][[x]] %>%
+                                mutate(state = x)
+                        })
 
             found_disease <- sub("^.*(zika|dengue).*$", "\\1", model)
             if (found_disease != model) {
@@ -76,7 +81,7 @@ for (model in models)
                 })
             }
 
-            names(l) <- names(traces[[model]][[dist]])
+            names(l) <- state_param_names
             params[[model]][[dist]] <- bind_rows(l)
             if ("time" %in% names(params[[model]][[dist]]))
             {
@@ -326,7 +331,8 @@ data <- data %>%
     left_join(first_obs, by = "obs_id") %>%
     left_join(last_obs, by = "obs_id") %>%
     filter(time >= first_obs & time <= last_obs) %>%
-    mutate(obs_id = factor(obs_id, labels = data_labels))
+    mutate(obs_id = factor(obs_id, levels = ordered_obs_id_levels,
+                           labels = data_labels))
 
 ## plots
 p_obs <- list()
@@ -345,8 +351,11 @@ labels <- c(p_d_inc_h = "italic(D)[plain(inc,H)]",
             p_b_h = "italic(b)[H]",
             p_b_m = "italic(b)[M]",
             p_t_start = "italic(t[0])",
-            R0 = "italic(R[0])",
-            GI = "italic(G)")
+            R0 = "italic(R)[H %->% H]",
+            GI = "italic(G)",
+            zika = "Zika",
+            yap = "Yap",
+            fais = "Fais")
 
 for (model in models)
 {
@@ -354,7 +363,8 @@ for (model in models)
   traces[[model]][["prior"]][["R0"]] <- traces[[model]][["prior"]][["R0"]] %>%
     filter(value < max_r0)
   obs <- traces[[model]][["posterior"]][["Cases"]] %>%
-    mutate(obs_id = factor(obs_id, labels = data_labels))
+      mutate(obs_id = factor(obs_id, levels = ordered_obs_id_levels,
+                             labels = data_labels))
   temp_plot <-
     plot_libbi(read = list(Cases = obs),
                model = bi_models[[model]],
@@ -368,14 +378,18 @@ for (model in models)
                quantiles = c(0.5, 0.72, 0.95))
   obs_states <- temp_plot$data$states %>%
       inner_join(data %>% select(time, obs_id, onset_date), by = c("time", "obs_id"))
-  p <- ggplot(obs_states, aes(x = onset_date)) +
+  p_obs[[model]] <- ggplot(obs_states, aes(x = onset_date)) +
       geom_point(data = data, mapping = aes(y = value)) +
       facet_wrap(~ obs_id, scales = "free") +
-      scale_x_date(labels = scales::date_format("%e %b %Y")) +
+      scale_x_date("Week", labels = scales::date_format("%e %b %Y")) +
       theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
-      facet_wrap(~ obs_id, scales = "free")
+      facet_wrap(~ obs_id, scales = "free") +
+      scale_y_continuous("Disease incidence") +
+      geom_line(aes(y = value)) +
+      geom_ribbon(aes(ymin = min.1, ymax = max.1), alpha = 0.5) +
+      geom_ribbon(aes(ymin = min.2, ymax = max.2), alpha = 0.25) +
+      geom_ribbon(aes(ymin = min.3, ymax = max.3), alpha = 0.125)
   
-  p_obs[[model]] <- $states + facet_wrap(~ obs_id, scales = "free")
   if (model %in% names(traces))
   {
       p_libbi[[model]] <- list()
@@ -395,7 +409,7 @@ for (model in models)
                                           linetype = "setting"),
                          trend = "mean", plot = FALSE,
                          quantiles = c(0.5, 0.95),
-                         labels = labels)
+                         labels = labels, brewer.palette = "Set1")
       }
   }
   p_r0gi[[model]] <-
@@ -412,7 +426,8 @@ for (model in models)
                labels = labels,
                states = c(), 
                params = c("R0", "GI"),
-               noises = c())
+               noises = c(),
+               brewer.palette = "Set1")
   p_r0[[model]] <-
       ggplot(traces[[model]][["posterior"]][["R0"]], 
              aes(x = value, color = disease, linetype = setting)) +
@@ -426,20 +441,50 @@ for (model in models)
 }
 
 ggsave("posterior_densities.pdf",
-       p_libbi[["vbd_fnh"]][["posterior"]]$densities,
+       p_libbi[["vbd_fnh"]][["posterior"]]$densities + scale_x_continuous(""),
        width = 7.5, height = 6.5)
-
+ggsave("posterior_r0gi_densities.pdf",
+       p_r0gi[["vbd_fnh"]]$densities + scale_x_continuous(""),
+       width = 7, height = 4)
 
 all_params <- rbind(params[["vbd_fnh"]][["posterior"]] %>% spread(state, value) %>% mutate(model = "vbd_fnh"), params[["vbd_fnh_earlier"]][["posterior"]] %>% spread(state, value) %>% mutate(model = "vbd_fnh_earlier")) %>%
-  filter(!(disease == "n/a" | setting == "n/a")) %>%
-  mutate(data = paste(disease, setting, sep = "_")) %>%
-  filter(data != "fais_zika) %>%
-  mutate(data = factor(data, levels = unique(data), labels = data_labels)) 
+    filter(!(disease == "n/a" | setting == "n/a")) %>%
+    mutate(data = paste(setting, disease, sep = "_")) %>%
+    filter(data != "fais_zika") %>%
+    mutate(data = factor(data, levels = ordered_obs_id_levels,
+                         labels = data_labels)) 
 
 p <- ggplot(all_params %>% filter(data != "Zika in Fais"),
-            aes(x = GI, y = R0)) +
-  geom_jitter() +
-  facet_grid(~ data) +
-  scale_x_continuous("Generation interval (weeks)") +
-  scale_y_continuous(expression(R[0]))
+            aes(x = GI, y = R0, color = model)) +
+    geom_jitter() +
+    facet_grid(~ data) +
+    scale_x_continuous("Generation interval (weeks)") +
+    scale_y_continuous(expression(R[0])) +
+    scale_color_brewer("Mosquito life span", palette = "Dark2", labels = c("2 weeks", "1 week")) +
+    theme(legend.position = "top")
 ggsave("GI_R0.pdf", p, width = 7, height = 2.3)
+ 
+ggsave("dengue_zika_obs.pdf", p_obs[["vbd_fnh"]], width = 7, height = 3)
+
+param_estimates <- p_libbi[["vbd_fnh"]][["posterior"]]$data$params %>%
+    group_by(distribution, disease, setting, parameter) %>%
+    summarise(mean = mean(value),
+              median = median(value), 
+              min.1 = quantile(value, 0.25),
+              max.1 = quantile(value, 0.75),
+              min.2 = quantile(value, 0.025),
+              max.2 = quantile(value, 0.975))
+
+r0gi_estimates <- p_r0gi[["vbd_fnh"]]$data$params %>%
+    group_by(distribution, disease, setting, parameter) %>%
+    summarise(mean = mean(value),
+              median = median(value), 
+              min.1 = quantile(value, 0.25),
+              max.1 = quantile(value, 0.75),
+              min.2 = quantile(value, 0.025),
+              max.2 = quantile(value, 0.975))
+
+two_panels <- plot_grid(p_r0gi[["vbd_fnh"]]$densities + xlab(""), p,
+                        ncol = 2, labels = c("A", "B"))
+
+save_plot("r0gi_two.pdf", two_panels, ncol = 2)
