@@ -281,7 +281,7 @@ for (model in models)
         ## not fitted
         traces[[model]][["posterior"]][["p_t_start"]] <-
           traces[[model]][["posterior"]][["p_t_start"]] %>%
-          filter(!(disease == "zika" & setting == "fais")) 
+          filter(!(disease == "zika" & setting == "fais"))
     }
 }
 
@@ -333,6 +333,19 @@ data <- data %>%
     filter(time >= first_obs & time <= last_obs) %>%
     mutate(obs_id = factor(obs_id, levels = ordered_obs_id_levels,
                            labels = data_labels))
+
+dic <- c()
+waic <- c()
+for (model in models)
+{
+    dic[model] <- compute_DIC(traces[[model]])
+    mean_lik <- data.table(traces[[model]][["posterior"]][["pointll"]]) [, list(mean = mean(exp(value))), by = time]
+    lppd <- mean_lik[, sum(log(mean))]
+    var_ll <-
+        data.table(traces[[model]][["posterior"]][["pointll"]])[, list(var = var(value)), by = time]
+    pwaic2 <- var_ll[, sum(var)]
+    waic[model] <- -2 * (lppd - pwaic2)
+}
 
 ## plots
 p_obs <- list()
@@ -452,7 +465,7 @@ all_params <- rbind(params[["vbd_fnh"]][["posterior"]] %>% spread(state, value) 
     mutate(data = paste(setting, disease, sep = "_")) %>%
     filter(data != "fais_zika") %>%
     mutate(data = factor(data, levels = ordered_obs_id_levels,
-                         labels = data_labels)) 
+                         labels = data_labels))
 
 p <- ggplot(all_params %>% filter(data != "Zika in Fais"),
             aes(x = GI, y = R0, color = model)) +
@@ -463,28 +476,62 @@ p <- ggplot(all_params %>% filter(data != "Zika in Fais"),
     scale_color_brewer("Mosquito life span", palette = "Dark2", labels = c("2 weeks", "1 week")) +
     theme(legend.position = "top")
 ggsave("GI_R0.pdf", p, width = 7, height = 2.3)
- 
-ggsave("dengue_zika_obs.pdf", p_obs[["vbd_fnh"]], width = 7, height = 3)
-
-param_estimates <- p_libbi[["vbd_fnh"]][["posterior"]]$data$params %>%
-    group_by(distribution, disease, setting, parameter) %>%
-    summarise(mean = mean(value),
-              median = median(value), 
-              min.1 = quantile(value, 0.25),
-              max.1 = quantile(value, 0.75),
-              min.2 = quantile(value, 0.025),
-              max.2 = quantile(value, 0.975))
-
-r0gi_estimates <- p_r0gi[["vbd_fnh"]]$data$params %>%
-    group_by(distribution, disease, setting, parameter) %>%
-    summarise(mean = mean(value),
-              median = median(value), 
-              min.1 = quantile(value, 0.25),
-              max.1 = quantile(value, 0.75),
-              min.2 = quantile(value, 0.025),
-              max.2 = quantile(value, 0.975))
 
 two_panels <- plot_grid(p_r0gi[["vbd_fnh"]]$densities + xlab(""), p,
                         ncol = 2, labels = c("A", "B"))
+
+ggsave("dengue_zika_obs.pdf", p_obs[["vbd_fnh"]], width = 7, height = 3)
+
+param_estimates <- list()
+r0_estimates <- list()
+r0_gi <- list()
+r0_gi_summary <- list()
+
+for (model in models)
+{
+  param_estimates[[model]] <-
+    p_libbi[[model]][["posterior"]]$data$params %>%
+    group_by(distribution, disease, setting, parameter) %>%
+    summarise(mean = mean(value),
+              median = median(value),
+              min.1 = quantile(value, 0.25),
+              max.1 = quantile(value, 0.75),
+              min.2 = quantile(value, 0.025),
+              max.2 = quantile(value, 0.975))
+
+    r0_estimates[[model]] <- p_r0gi[[model]]$data$params %>%
+      filter(distribution == "posterior" &
+             parameter == "italic(R)[H %->% H]") %>% 
+      group_by(disease, setting) %>%
+      summarise(mean = mean(value),
+                median = median(value), 
+                min.1 = quantile(value, 0.25),
+                max.1 = quantile(value, 0.75),
+                min.2 = quantile(value, 0.025),
+                max.2 = quantile(value, 0.975))
+}
+
+for (model in grep("_earlier$", models, invert = TRUE, value = TRUE))
+{
+    r0_gi[[model]] <-
+        rbind(p_r0gi[[model]]$data$params %>%
+              mutate(model = model),
+              p_r0gi[[paste0(model, "_earlier")]]$data$params %>%
+              mutate(model = paste0(model, "_earlier"))) %>%
+      spread(parameter, value) %>%
+      mutate(`italic(G)` = cut(`italic(G)`,
+                               breaks = c(2, seq(2 + 3/7, 5, 1)),
+                               labels = seq(2, 4, 1))) %>%
+      filter(!is.na(`italic(G)`))
+
+  r0_gi_summary[[model]] <- r0_gi[[model]] %>% 
+      group_by(`italic(G)`, disease, setting) %>%
+      summarise(mean = mean(`italic(R)[H %->% H]`, na.rm = TRUE),
+                median = median(`italic(R)[H %->% H]`, na.rm = TRUE), 
+                min.1 = quantile(`italic(R)[H %->% H]`, 0.25, na.rm = TRUE),
+                max.1 = quantile(`italic(R)[H %->% H]`, 0.75, na.rm = TRUE),
+                min.2 = quantile(`italic(R)[H %->% H]`, 0.025, na.rm = TRUE),
+                max.2 = quantile(`italic(R)[H %->% H]`, 0.975, na.rm = TRUE))
+}
 
 save_plot("r0gi_two.pdf", two_panels, ncol = 2)
