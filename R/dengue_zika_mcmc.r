@@ -27,6 +27,7 @@ Options:
   -g --fix-move                     fix movement
   -x --fix-natural-history          fix the natural history of the mosquito
   -m --model-file=<model.file>      given model file (means there will be no adaptation step)
+  -N --noise                        add multiplicative noise
   -k --keep                         keep working directory
   -f --force                        force overwrite
   -y --setting=<setting>            only fit this setting
@@ -70,6 +71,7 @@ verbose <- opts[["verbose"]]
 par_nb <- as.integer(opts[["parallel-number"]])
 analysis_setting <- opts[["setting"]]
 analysis_disease <- opts[["disease"]]
+noise <- opts[["noise"]]
 
 library('dplyr')
 library('tidyr')
@@ -195,20 +197,25 @@ if (!sero || pop)
     grep("p_initial_susceptible_yap.*~", model$get_lines())
   model$insert_lines(after = initial_susceptible_parameter_line,
                      "p_initial_susceptible_yap[1] <- 1")
-} else
+}
+
+if (!pop)
 {
     model$fix(p_pop_yap = 1)
+}
+
+if (!noise)
+{
+    model$fix(p_phi = 0)
 }
 
 ## set output file name
 if (length(output_file_name) == 0)
 {
     filebase <- "vbd"
-    output_file_name <- paste0(data_dir, "/", filebase, ifelse(stoch, "_stoch", ""), ifelse(fix_move, "_move", ""), ifelse(sero, "_sero", ""), ifelse(patch, "_patch", ""), ifelse(reverse, "_reverse", ""), ifelse(fix_natural_history, "_fnh", ""), ifelse(earlier_death, "_earlier", ""), ifelse(nrow(analyses) == 1, paste("", as.character(analyses[1, "setting"]), as.character(analyses[1, "disease"]), sep = "_"), ""),  ifelse(length(par_nb) == 0, "", paste0("_", par_nb)))
+    output_file_name <- paste0(data_dir, "/", filebase, ifelse(stoch, "_stoch", ""), ifelse(noise, "_noise", ""), ifelse(fix_move, "_move", ""), ifelse(sero, "_sero", ""), ifelse(pop, "_pop", ""), ifelse(patch, "_patch", ""), ifelse(reverse, "_reverse", ""), ifelse(fix_natural_history, "_fnh", ""), ifelse(earlier_death, "_earlier", ""), ifelse(nrow(analyses) == 1, paste("", as.character(analyses[1, "setting"]), as.character(analyses[1, "disease"]), sep = "_"), ""),  ifelse(length(par_nb) == 0, "", paste0("_", par_nb)))
 }
 cat("Output: ",  output_file_name, "\n")
-
-saveRDS(init, paste(output_file_name, "init.rds", sep = "_"))
 
 if (!force && file.exists(paste0(output_file_name, "_params.rds")))
 {
@@ -231,9 +238,12 @@ if (length(seed) == 0) {
 
 init <- list(p_N_h = data.frame(setting = factor(c("yap", "fais"),
                                                  levels = c("yap", "fais")),
-                                value = pop_size[c("yap", "fais")))
+                                value = pop_size[c("yap", "fais")]))
+
+saveRDS(init, paste(output_file_name, "init.rds", sep = "_"))
 
 cat("Seed: ", seed, "\n")
+saveRDS(seed, file = paste0(output_file_name, "_seed.rds"))
 
 set.seed(seed)
 

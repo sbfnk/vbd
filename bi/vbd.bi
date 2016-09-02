@@ -25,6 +25,8 @@ model vbd {
   param p_initial_susceptible_yap[disease] // proportion initially susceptible for dengue in Yap
   param p_pop_yap
 
+  param p_phi[disease,setting]
+
   param p_rep[disease] // reporting rate
 
   param p_b_h[disease] // probability that a bite on a human leads to infection
@@ -81,6 +83,8 @@ model vbd {
 
     p_red_foi_yap ~ uniform(lower = 0, upper = 1)
     p_p_patch_yap ~ uniform(lower = 0.5, upper = 1)
+
+    p_phi[disease,setting] ~ uniform(lower = 0, upper = 1)
   }
 
   sub initial {
@@ -150,7 +154,7 @@ model vbd {
   }
 
   sub observation {
-    Cases[obs_id] ~ truncated_gaussian(mean = p_rep[obs_id / 2] * (Z_h[0,obs_id % 2,obs_id / 2] + Z_h[1,obs_id % 2,obs_id / 2]), std = max(sqrt(p_rep[obs_id / 2] * (Z_h[0,obs_id % 2,obs_id / 2] + Z_h[1,obs_id % 2,obs_id / 2])), 1), lower = 0)
+    Cases[obs_id] ~ truncated_gaussian(mean = p_rep[obs_id / 2] * (Z_h[0,obs_id % 2,obs_id / 2] + Z_h[1,obs_id % 2,obs_id / 2]), std = max(sqrt(p_rep[obs_id / 2] * (Z_h[0,obs_id % 2,obs_id / 2] + Z_h[1,obs_id % 2,obs_id / 2]) + (p_rep[obs_id / 2] ** 2) * ((Z_h[0,obs_id % 2,obs_id / 2] + Z_h[1,obs_id % 2,obs_id / 2]) ** 2) * (p_phi[obs_id % 2, obs_id / 2] ** 2)), 1), lower = 0)
     Sero[obs_id] ~ gaussian(mean = (R_h[0,obs_id % 2,obs_id / 2] + R_h[1,obs_id % 2,obs_id / 2]) / p_N_h[obs_id % 2], std = 0.09 / 3.98)
   }
 
