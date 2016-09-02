@@ -518,6 +518,7 @@ for (model in grep("_earlier$", models, invert = TRUE, value = TRUE))
               mutate(model = model),
               p_r0gi[[paste0(model, "_earlier")]]$data$params %>%
               mutate(model = paste0(model, "_earlier"))) %>%
+      filter(distribution == "posterior") %>% 
       spread(parameter, value) %>%
       mutate(`italic(G)` = cut(`italic(G)`,
                                breaks = c(2, seq(2 + 3/7, 5, 1)),
