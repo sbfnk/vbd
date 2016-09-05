@@ -24,6 +24,63 @@ data_labels <- sub("^(.*)_(.*)$", "\\2 \\1", data_labels)
 data_labels <- sub(" ", " in ", stri_trans_totitle(data_labels))
 names(data_labels) <- ordered_obs_id_levels
 
+ts <- list()
+analyses <- data.frame(setting = c("yap", "yap", "fais"), disease = c("dengue", "zika", "dengue"))
+
+for (i in 1:nrow(analyses))
+{
+    this_setting <- analyses[i, "setting"]
+    this_disease <- analyses[i, "disease"]
+    this_filename <-
+      paste(code_dir, "data",
+            paste(this_setting, this_disease, "data.rds", sep = "_"),
+            sep = "/")
+    this_ts <- readRDS(this_filename) %>%
+      mutate(setting = this_setting, disease = this_disease,
+             week = floor(nr / 7))
+    ts <- c(ts, list(this_ts))
+}
+
+dt_ts <- bind_rows(ts) %>%
+    group_by(week, setting, disease) %>%
+    summarize(value = sum(value), onset_date = min(onset_date)) %>%
+    ungroup() %>%
+    mutate(obs_id = factor(paste(setting, disease, sep = "_"),
+                           levels = c("yap_dengue", "fais_dengue", "yap_zika"))) %>%
+    arrange(week, obs_id) %>%
+    select(week, obs_id, value, onset_date) ## %>%
+    ## complete(week, obs_id, fill = list(value = 0))
+
+peak <- dt_ts %>%
+    group_by(obs_id) %>%
+    slice(which.max(value)) %>%
+    ungroup() %>%
+    select(peak_week = week, obs_id) 
+
+growth <- dt_ts %>%
+    left_join(peak) %>%
+    filter(week <= peak_week & value > 0)
+
+## estimate initial growth rate
+r <- c()
+
+for (id in levels(growth$obs_id))
+{
+    inc <- growth %>%
+        filter(obs_id == id) %>%
+        .$value
+    time <- seq_along(inc)
+    fit <- nls(inc ~ a * exp(time * b), start = c(a = 5, b = 0.1))
+    new_el <- coef(fit)[["b"]]
+    names(new_el) <- id
+    r <- c(r, new_el)
+}
+
+r_tb <- tibble(obs_id = names(r), r = r) %>%
+    mutate(setting = sub("_.*$", "", obs_id),
+           disease = sub("^.*_", "", obs_id)) %>%
+    select(-obs_id)
+
 traces <- list()
 params <- list()
 priors <- list()
@@ -122,13 +179,22 @@ for (model in models)
                 p_d_life_m <- 2
             }
 
+            littler <- r_tb %>%
+                mutate(setting = factor(setting,
+                                        levels = levels(params_all$setting)),
+                       disease = factor(disease,
+                                        levels = levels(params_all$disease)))
+
             r0 <- params_all %>%
+                left_join(littler) %>%
                 spread(state, value) %>%
                 mutate(R0 = (p_tau * p_d_life_m)**2 *
                            p_b_h * p_b_m * 10**(p_lm) * p_d_inf_h /
                            (p_d_life_m + p_d_inc_m),
-                       GI = (p_d_inc_h + p_d_inf_h +
-                             p_d_inc_m + p_d_life_m))
+                       IP = (p_d_inc_h + p_d_inc_m), 
+                       GI = (p_d_inc_h + p_d_inc_m +
+                             1 / (r + 1 / p_d_inf_h) +
+                             1 / (r + 1 / p_d_life_m)))
             first_col <-
                 min(which(!(colnames(r0) %in% c("disease", "setting",
                                                 "patch", "np"))))
@@ -285,33 +351,6 @@ for (model in models)
     }
 }
 
-ts <- list()
-analyses <- data.frame(setting = c("yap", "yap", "fais"), disease = c("dengue", "zika", "dengue"))
-
-for (i in 1:nrow(analyses))
-{
-    this_setting <- analyses[i, "setting"]
-    this_disease <- analyses[i, "disease"]
-    this_filename <-
-      paste(code_dir, "data",
-            paste(this_setting, this_disease, "data.rds", sep = "_"),
-            sep = "/")
-    this_ts <- readRDS(this_filename) %>%
-      mutate(setting = this_setting, disease = this_disease,
-             week = floor(nr / 7))
-    ts <- c(ts, list(this_ts))
-}
-
-dt_ts <- bind_rows(ts) %>%
-    group_by(week, setting, disease) %>%
-    summarize(value = sum(value), onset_date = min(onset_date)) %>%
-    ungroup() %>%
-    mutate(obs_id = factor(paste(setting, disease, sep = "_"),
-                           levels = c("yap_dengue", "fais_dengue", "yap_zika"))) %>%
-    arrange(week, obs_id) %>%
-    select(week, obs_id, value, onset_date) ## %>%
-    ## complete(week, obs_id, fill = list(value = 0))
-
 data <- dt_ts %>%
     rename(time = week) %>%
     mutate(state = "Cases")
@@ -402,7 +441,7 @@ for (model in models)
       geom_ribbon(aes(ymin = min.1, ymax = max.1), alpha = 0.5) +
       geom_ribbon(aes(ymin = min.2, ymax = max.2), alpha = 0.25) +
       geom_ribbon(aes(ymin = min.3, ymax = max.3), alpha = 0.125)
-  
+
   if (model %in% names(traces))
   {
       p_libbi[[model]] <- list()
@@ -497,6 +536,7 @@ for (model in models)
                 min.2 = quantile(value, 0.025),
                 max.2 = quantile(value, 0.975))
 }
+
 
 for (model in grep("_earlier$", models, invert = TRUE, value = TRUE))
 {
