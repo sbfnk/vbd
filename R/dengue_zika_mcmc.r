@@ -334,18 +334,19 @@ cat(date(), "Sampling from the posterior distribution of the full model.\n")
 
 libbi_seed <- ceiling(runif(1, -1, .Machine$integer.max - 1))
 bi_wrapper <- bi_wrapper_adapted
-bi_wrapper$run(add_options = list("init-np" = pre_samples - 1,
-                                  nsamples = num_samples,
-                                  seed = libbi_seed),
-               init = bi_wrapper_adapted, verbose = verbose)
-
-cat(date(), "Done.\n")
 
 if (length(model_file) == 0)
 {
     model_file <- paste(output_file_name, "bi", sep = ".")
     bi_wrapper$model$write_model_file(model_file)
 }
+
+bi_wrapper$run(add_options = list("init-np" = pre_samples - 1,
+                                  nsamples = num_samples,
+                                  seed = libbi_seed),
+               init = bi_wrapper_adapted, verbose = verbose)
+
+cat(date(), "Done.\n")
 
 command_file <- paste(output_file_name, "cmd", sep = ".")
 cat(bi_wrapper$result$command, file = command_file)
