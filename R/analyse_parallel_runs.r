@@ -13,7 +13,7 @@ p_tau <- 7 ## fixed biting rate, 1 per day (7 per week)
 output_dir <- path.expand("~/Data/Zika")
 code_dir <- path.expand("~/code/vbd/")
 
-models <- c("vbd_fnh", "vbd_fnh_earlier", "vbd_sero_fnh", "vbd_sero_fnh_earlier", "vbd_sero_pop_fnh", "vbd_sero_pop_fnh_earlier")
+models <- sub("\\.cmd$", "", list.files(output_dir, "^.*\\.cmd$"))
 
 obs_id_levels <- c("yap_dengue", "fais_dengue", "yap_zika")
 ## ordered in time
@@ -460,21 +460,6 @@ ggsave("posterior_r0gi_densities.pdf",
        p_r0gi[["vbd_fnh"]]$densities + scale_x_continuous(""),
        width = 7, height = 4)
 
-all_params <- rbind(params[["vbd_fnh"]][["posterior"]] %>% spread(state, value) %>% mutate(model = "vbd_fnh"), params[["vbd_fnh_earlier"]][["posterior"]] %>% spread(state, value) %>% mutate(model = "vbd_fnh_earlier")) %>%
-    filter(!(disease == "n/a" | setting == "n/a")) %>%
-    mutate(data = paste(setting, disease, sep = "_")) %>%
-    filter(data != "fais_zika") %>%
-    mutate(data = factor(data, levels = ordered_obs_id_levels,
-                         labels = data_labels))
-
-p <- ggplot(all_params %>% filter(data != "Zika in Fais"),
-            aes(x = GI, y = R0, color = model)) +
-    geom_jitter() +
-    facet_grid(~ data) +
-    scale_x_continuous("Generation interval (weeks)") +
-    scale_y_continuous(expression(R[0])) +
-    scale_color_brewer("Mosquito life span", palette = "Dark2", labels = c("2 weeks", "1 week")) +
-    theme(legend.position = "top")
 ggsave("GI_R0.pdf", p, width = 7, height = 2.3)
 
 two_panels <- plot_grid(p_r0gi[["vbd_fnh"]]$densities + xlab(""), p,
@@ -486,6 +471,8 @@ param_estimates <- list()
 r0_estimates <- list()
 r0_gi <- list()
 r0_gi_summary <- list()
+all_params <- list()
+p_r0vgi <- list()
 
 for (model in models)
 {
@@ -513,26 +500,60 @@ for (model in models)
 
 for (model in grep("_earlier$", models, invert = TRUE, value = TRUE))
 {
-    r0_gi[[model]] <-
-        rbind(p_r0gi[[model]]$data$params %>%
-              mutate(model = model),
-              p_r0gi[[paste0(model, "_earlier")]]$data$params %>%
-              mutate(model = paste0(model, "_earlier"))) %>%
-      filter(distribution == "posterior") %>% 
+    r0_gi[[model]] <- p_r0gi[[model]]$data$params %>%
+        mutate(model = model,
+               mosquito.lifespan = "2 weeks")
+    all_params[[model]] <- params[[model]][["posterior"]] %>%
+        spread(state, value) %>%
+        mutate(model = model,
+               mosquito.lifespan = "2 weeks")
+
+    if (paste0(model, "_earlier") %in% names(p_r0gi))
+    {
+        r0_gi[[model]] <-
+            rbind(r0_gi[[model]],
+                  p_r0gi[[paste0(model, "_earlier")]]$data$params %>%
+                  mutate(model = paste0(model, "_earlier"),
+                         mosquito.lifespan = "1 week"))
+        all_params[[model]] <-
+            rbind(all_params[[model]],
+                  params[[paste0(model, "_earlier")]][["posterior"]] %>%
+                  spread(state, value) %>%
+                  mutate(model = model,
+                         mosquito.lifespan = "1 week"))
+    }
+    r0_gi[[model]] <- r0_gi[[model]] %>%
+      filter(distribution == "posterior") %>%
       spread(parameter, value) %>%
       mutate(`italic(G)` = cut(`italic(G)`,
                                breaks = c(2, seq(2 + 3/7, 5, 1)),
                                labels = seq(2, 4, 1))) %>%
       filter(!is.na(`italic(G)`))
 
-  r0_gi_summary[[model]] <- r0_gi[[model]] %>% 
-      group_by(`italic(G)`, disease, setting) %>%
-      summarise(mean = mean(`italic(R)[H %->% H]`, na.rm = TRUE),
-                median = median(`italic(R)[H %->% H]`, na.rm = TRUE), 
-                min.1 = quantile(`italic(R)[H %->% H]`, 0.25, na.rm = TRUE),
-                max.1 = quantile(`italic(R)[H %->% H]`, 0.75, na.rm = TRUE),
-                min.2 = quantile(`italic(R)[H %->% H]`, 0.025, na.rm = TRUE),
-                max.2 = quantile(`italic(R)[H %->% H]`, 0.975, na.rm = TRUE))
+    all_params[[model]] <- all_params[[model]] %>%
+        filter(!(disease == "n/a" | setting == "n/a")) %>%
+        mutate(data = paste(setting, disease, sep = "_")) %>%
+        filter(data != "fais_zika") %>%
+        mutate(data = factor(data, levels = ordered_obs_id_levels,
+                             labels = data_labels))
+
+    r0_gi_summary[[model]] <- r0_gi[[model]] %>%
+        group_by(`italic(G)`, disease, setting) %>%
+        summarise(mean = mean(`italic(R)[H %->% H]`, na.rm = TRUE),
+                  median = median(`italic(R)[H %->% H]`, na.rm = TRUE), 
+                  min.1 = quantile(`italic(R)[H %->% H]`, 0.25, na.rm = TRUE),
+                  max.1 = quantile(`italic(R)[H %->% H]`, 0.75, na.rm = TRUE),
+                  min.2 = quantile(`italic(R)[H %->% H]`, 0.025, na.rm = TRUE),
+                  max.2 = quantile(`italic(R)[H %->% H]`, 0.975, na.rm = TRUE))
+
+    p_r0vgi[[model]] <- ggplot(all_params[[model]] %>% filter(data != "Zika in Fais"),
+                               aes(x = GI, y = R0, color = mosquito.lifespan)) +
+        geom_jitter() +
+        facet_grid(~ data) +
+        scale_x_continuous("Equilibrium generation interval (weeks)") +
+        scale_y_continuous(expression(R[0])) +
+        scale_color_brewer("Mosquito life span", palette = "Dark2") +
+        theme(legend.position = "top")
 }
 
 save_plot("r0gi_two.pdf", two_panels, ncol = 2)
