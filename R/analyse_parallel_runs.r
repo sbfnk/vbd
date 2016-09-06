@@ -188,13 +188,11 @@ for (model in models)
             r0 <- params_all %>%
                 left_join(littler) %>%
                 spread(state, value) %>%
-                mutate(R0 = (p_tau * p_d_life_m)**2 *
-                           p_b_h * p_b_m * 10**(p_lm) * p_d_inf_h /
+                mutate(R0 = p_tau**2 *
+                           p_b_h * p_b_m * 10**(p_lm) * p_d_inf_h  * p_d_life_m * p_d_life_m /
                            (p_d_life_m + p_d_inc_m),
-                       IP = (p_d_inc_h + p_d_inc_m), 
-                       GI = (p_d_inc_h + p_d_inc_m +
-                             1 / (r + 1 / p_d_inf_h) +
-                             1 / (r + 1 / p_d_life_m)))
+                       GI = p_d_inc_h + p_d_inc_m + p_d_inf_h + p_d_life_m)
+
             first_col <-
                 min(which(!(colnames(r0) %in% c("disease", "setting",
                                                 "patch", "np"))))
@@ -595,5 +593,15 @@ for (model in grep("_earlier$", models, invert = TRUE, value = TRUE))
         scale_color_brewer("Mosquito life span", palette = "Dark2") +
         theme(legend.position = "top")
 }
+
+saveRDS(list(r0_gi = r0_gi,
+             all_params = all_params,
+             r0_gi_summary = r0_gi_summary,
+             p_r0vgi = p_r0vgi,
+             p_libbi = p_libbi,
+             p_r0 = p_r0,
+             p_r0gi = p_r0gi,
+             p_r0_sqrt = p_r0_sqrt),
+        "results.rds")
 
 save_plot("r0gi_two.pdf", two_panels, ncol = 2)
