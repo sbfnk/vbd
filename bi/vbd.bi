@@ -84,7 +84,7 @@ model vbd {
     p_red_foi_yap ~ uniform(lower = 0, upper = 1)
     p_p_patch_yap ~ uniform(lower = 0.5, upper = 1)
 
-    p_phi[disease,setting] ~ uniform(lower = 0, upper = 1)
+    p_phi[disease,setting] ~ uniform(lower = 0, upper = 5)
   }
 
   sub initial {
