@@ -17,7 +17,7 @@ models <- sub("\\.cmd$", "", list.files(output_dir, "^.*\\.cmd$"))
 
 obs_id_levels <- c("yap_dengue", "fais_dengue", "yap_zika")
 ## ordered in time
-ordered_obs_id_levels <- c("yap_zika", "fais_dengue", "yap_dengue")
+ordered_obs_id_levels <- c("yap_zika", "yap_dengue", "fais_dengue")
 
 data_labels <- ordered_obs_id_levels
 data_labels <- sub("^(.*)_(.*)$", "\\2 \\1", data_labels)
@@ -496,12 +496,6 @@ ggsave("posterior_densities.pdf",
 ggsave("posterior_r0gi_densities.pdf",
        p_r0gi[["vbd_fnh"]]$densities + scale_x_continuous(""),
        width = 7, height = 4)
-
-ggsave("GI_R0.pdf", p, width = 7, height = 2.3)
-
-two_panels <- plot_grid(p_r0gi[["vbd_fnh"]]$densities + xlab(""), p,
-                        ncol = 2, labels = c("A", "B"))
-
 ggsave("dengue_zika_obs.pdf", p_obs[["vbd_fnh"]], width = 7, height = 3)
 
 param_estimates <- list()
@@ -535,7 +529,6 @@ for (model in models)
                 max.2 = quantile(value, 0.975))
 }
 
-
 for (model in grep("_earlier$", models, invert = TRUE, value = TRUE))
 {
     r0_gi[[model]] <- p_r0gi[[model]]$data$params %>%
@@ -563,9 +556,9 @@ for (model in grep("_earlier$", models, invert = TRUE, value = TRUE))
     r0_gi[[model]] <- r0_gi[[model]] %>%
       filter(distribution == "posterior") %>%
       spread(parameter, value) %>%
-      mutate(`italic(G)` = cut(`italic(G)`,
-                               breaks = c(2, seq(2 + 3/7, 5, 1)),
-                               labels = seq(2, 4, 1))) %>%
+      ## mutate(`italic(G)` = cut(`italic(G)`,
+      ##                          breaks = c(2, seq(2 + 3/7, 5, 1)),
+      ##                          labels = seq(2, 4, 1))) %>%
       filter(!is.na(`italic(G)`))
 
     all_params[[model]] <- all_params[[model]] %>%
@@ -576,32 +569,57 @@ for (model in grep("_earlier$", models, invert = TRUE, value = TRUE))
                              labels = data_labels))
 
     r0_gi_summary[[model]] <- r0_gi[[model]] %>%
+        filter(abs(`italic(G)` - round(`italic(G)`)) < 0.1) %>% 
+        mutate(`italic(G)` = round(`italic(G)`)) %>% 
         group_by(`italic(G)`, disease, setting) %>%
         summarise(mean = mean(`italic(R)[H %->% H]`, na.rm = TRUE),
-                  median = median(`italic(R)[H %->% H]`, na.rm = TRUE), 
+                  median = median(`italic(R)[H %->% H]`, na.rm = TRUE),
                   min.1 = quantile(`italic(R)[H %->% H]`, 0.25, na.rm = TRUE),
                   max.1 = quantile(`italic(R)[H %->% H]`, 0.75, na.rm = TRUE),
                   min.2 = quantile(`italic(R)[H %->% H]`, 0.025, na.rm = TRUE),
-                  max.2 = quantile(`italic(R)[H %->% H]`, 0.975, na.rm = TRUE))
+                  max.2 = quantile(`italic(R)[H %->% H]`, 0.975, na.rm = TRUE),
+                  n = n())
 
     p_r0vgi[[model]] <- ggplot(all_params[[model]] %>% filter(data != "Zika in Fais"),
-                               aes(x = GI, y = R0, color = mosquito.lifespan)) +
-        geom_jitter() +
+                               aes(x = GI)) +
+        geom_jitter(aes(y = R0, color = mosquito.lifespan)) +
         facet_grid(~ data) +
         scale_x_continuous("Equilibrium generation interval (weeks)") +
-        scale_y_continuous(expression(R[0])) +
+        scale_y_continuous(expression(italic(R)[H %->% H])) +
         scale_color_brewer("Mosquito life span", palette = "Dark2") +
         theme(legend.position = "top")
 }
 
-## saveRDS(list(r0_gi = r0_gi,
-##              all_params = all_params,
-##              r0_gi_summary = r0_gi_summary,
-##              p_r0vgi = p_r0vgi,
-##              p_libbi = p_libbi,
-##              p_r0 = p_r0,
-##              p_r0gi = p_r0gi,
-##              p_r0_sqrt = p_r0_sqrt),
-##         "results.rds")
+r0vgi_paper <- p_r0vgi[["vbd_fnh"]] +
+  facet_wrap(~ data, scales = "free") +
+  geom_rect(data = cross_sections, aes(xmin = GI - 0.1, xmax = GI + 0.1), ymin = -Inf, ymax = Inf, alpha = 0.2, lwd = 3)
 
-save_plot("r0gi_two.pdf", two_panels, ncol = 2)
+ggsave("GI_R0.pdf", p_r0vgi[["vbd_fnh"]], width = 7, height = 2.3)
+
+two_panels <- plot_grid(p_r0gi[["vbd_fnh"]]$densities + xlab(""),
+                        r0vgi_paper, 
+                        ncol = 2, labels = c("A", "B"))
+save_plot("r0gi_two.pdf", two_panels, ncol = 2, base_aspect_ratio = 1.5)
+
+p_densities <- lapply(p_libbi, function(x) { x[["posterior"]][["densities"]]})
+
+save_vars <- list(r0_gi = r0_gi,
+                  all_params = all_params,
+                  r0_gi_summary = r0_gi_summary,
+                  p_densities = p_densities, 
+                  p_r0vgi = p_r0vgi,
+                  p_r0 = p_r0,
+                  p_r0gi = p_r0gi,
+                  p_r0_sqrt = p_r0_sqrt)
+
+saveRDS(save_vars, "results.rds")
+## save_vars <- readRDS("results.rds")
+
+## for (name in names(save_vars))
+## {
+##     assign(name, save_vars[[name]])
+## }
+
+cross_sections <- data.frame(GI = c(3, 4))
+
+save_plot("r0vgi.pdf", r0vgi_paper, base_aspect_ratio = 2)
