@@ -594,14 +594,14 @@ for (model in grep("_earlier$", models, invert = TRUE, value = TRUE))
         theme(legend.position = "top")
 }
 
-saveRDS(list(r0_gi = r0_gi,
-             all_params = all_params,
-             r0_gi_summary = r0_gi_summary,
-             p_r0vgi = p_r0vgi,
-             p_libbi = p_libbi,
-             p_r0 = p_r0,
-             p_r0gi = p_r0gi,
-             p_r0_sqrt = p_r0_sqrt),
-        "results.rds")
+## saveRDS(list(r0_gi = r0_gi,
+##              all_params = all_params,
+##              r0_gi_summary = r0_gi_summary,
+##              p_r0vgi = p_r0vgi,
+##              p_libbi = p_libbi,
+##              p_r0 = p_r0,
+##              p_r0gi = p_r0gi,
+##              p_r0_sqrt = p_r0_sqrt),
+##         "results.rds")
 
 save_plot("r0gi_two.pdf", two_panels, ncol = 2)
