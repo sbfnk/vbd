@@ -171,13 +171,13 @@ for (model in models)
                       filter(!is.na(setting)),
                       bind_rows(params_setting))
 
-            ## if (grepl("earlier", model))
-            ## {
-            ##     p_d_life_m <- 1
-            ## } else
-            ## {
-            ##     p_d_life_m <- 2
-            ## }
+            if (grepl("earlier", model))
+            {
+                p_d_life_m <- 1
+            } else
+            {
+                p_d_life_m <- 2
+            }
 
             littler <- r_tb %>%
                 mutate(setting = factor(setting,
@@ -349,6 +349,64 @@ for (model in models)
     }
 }
 
+earlier_models <-
+  sub("_earlier$", "", grep("_earlier$", models, value = TRUE))
+
+all_traces <-
+    lapply(earlier_models,
+           function(model)
+           {
+               early_model <- paste(model, "earlier", sep = "_")
+               l <- lapply(names(traces[[model]]),
+               {
+                   function(dist)
+                   {
+                       m <- lapply(names(traces[[model]][[dist]]), function(var)
+                       {
+                           rbind(traces[[model]][[dist]][[var]] %>%
+                                 mutate(p_d_life_m = 2),
+                                 traces[[early_model]][[dist]][[var]] %>%
+                                 mutate(p_d_life_m = 1,
+                                        np = np + 1 + max(traces[[model]][[dist]][["loglikelihood"]][["np"]])))
+                       })
+                       names(m) <- names(traces[[model]][[dist]])
+                       return(m)
+                   }
+               })
+               names(l) <- names(traces[[model]])
+               return(l)
+           })
+
+names(all_traces) <- paste(earlier_models, "all", sep = "_")
+traces <- c(traces, all_traces)
+
+
+all_params <-
+    lapply(earlier_models,
+           function(model)
+           {
+               early_model <- paste(model, "earlier", sep = "_")
+               l <- lapply(names(params[[model]]),
+                           function(dist)
+                           {
+                             rbind(params[[model]][[dist]] %>%
+                                   mutate(p_d_life_m = 2),
+                                   params[[early_model]][[dist]] %>%
+                                   mutate(p_d_life_m = 1,
+                                          np = np + 1 + max(params[[model]][[dist]][["np"]])))
+                           })
+               names(l) <- names(params[[model]])
+               return(l)
+           })
+
+names(all_params) <- paste(earlier_models, "all", sep = "_")
+params <- c(params, all_params)
+
+for (model in earlier_models)
+{
+    bi_models[[paste(model, "all", sep = "_")]] <- bi_models[[model]]
+}
+
 data <- dt_ts %>%
     rename(time = week) %>%
     mutate(state = "Cases")
@@ -373,9 +431,9 @@ data <- data %>%
 
 dic <- c()
 waic <- c()
-for (model in models)
+for (model in names(traces))
 {
-    dic[model] <- compute_DIC(traces[[model]])
+    dic[model] <- compute_DIC(traces[[model]][["posterior"]])
     mean_lik <- data.table(traces[[model]][["posterior"]][["pointll"]]) [, list(mean = mean(exp(value))), by = time]
     lppd <- mean_lik[, sum(log(mean))]
     var_ll <-
@@ -407,7 +465,7 @@ labels <- c(p_d_inc_h = "italic(D)[plain(inc,H)]",
             yap = "Yap",
             fais = "Fais")
 
-for (model in models)
+for (model in names(traces))
 {
   max_r0 <- max(traces[[model]][["posterior"]][["R0"]]$value)
   traces[[model]][["prior"]][["R0"]] <- traces[[model]][["prior"]][["R0"]] %>%
@@ -420,9 +478,9 @@ for (model in models)
                model = bi_models[[model]],
                data = data %>% filter(value > 0),
                density_args = list(adjust = 2),
-               ## densities = "histogram", 
+               ## densities = "histogram",
                extra.aes = list(group = "obs_id"),
-               data.colour = "black", 
+               data.colour = "black",
                states = "Cases", trend = "mean", plot = FALSE,
                limit.to.data = TRUE,
                quantiles = c(0.5, 0.72, 0.95))
@@ -440,51 +498,47 @@ for (model in models)
       geom_ribbon(aes(ymin = min.2, ymax = max.2), alpha = 0.25) +
       geom_ribbon(aes(ymin = min.3, ymax = max.3), alpha = 0.125)
 
-  if (model %in% names(traces))
+  p_libbi[[model]] <- list()
+  for (type in names(traces[[model]]))
   {
-      p_libbi[[model]] <- list()
-      for (type in names(traces[[model]]))
-      {
-        ## rename
-        param_names <- names(traces[[model]][[type]])
-
-        p_libbi[[model]][[type]] <-
-              plot_libbi(read = traces[[model]][[type]],
-                         prior = traces[[model]][["prior"]], 
-                         model = bi_models[[model]],
-                         density_args = list(bins = 20, alpha = 0.5), 
-                         densities = "histogram", 
-                         ## density_args = list(adjust = 2, alpha = 0.5),
-                         extra.aes = list(color = "disease",
-                                          linetype = "setting"),
-                         trend = "mean", plot = FALSE,
-                         quantiles = c(0.5, 0.95),
-                         labels = labels, brewer.palette = "Set1")
-      }
+      ## rename
+      param_names <- names(traces[[model]][[type]])
+      p_libbi[[model]][[type]] <-
+          plot_libbi(read = traces[[model]][[type]],
+                     prior = traces[[model]][["prior"]],
+                     model = bi_models[[model]],
+                     density_args = list(bins = 20, alpha = 0.5),
+                     densities = "histogram",
+                     ## density_args = list(adjust = 2, alpha = 0.5),
+                     extra.aes = list(color = "disease",
+                                      linetype = "setting"),
+                     trend = "mean", plot = FALSE,
+                     quantiles = c(0.5, 0.95),
+                     labels = labels, brewer.palette = "Set1")
   }
   p_r0gi[[model]] <-
     plot_libbi(read = traces[[model]][[type]],
-               prior = traces[[model]][["prior"]], 
+               prior = traces[[model]][["prior"]],
                model = bi_models[[model]],
-               density_args = list(bins = 20, alpha = 0.5), 
-               densities = "histogram", 
-               ## density_args = list(adjust = 2, alpha = 0.5),
+               ## density_args = list(bins = 20, alpha = 0.5),
+               ## densities = "histogram",
+               density_args = list(adjust = 2, alpha = 0.5),
                extra.aes = list(color = "disease",
                                 linetype = "setting"),
                trend = "mean", plot = FALSE,
                quantiles = c(0.5, 0.95),
                labels = labels,
-               states = c(), 
+               states = c(),
                params = c("R0", "GI"),
                noises = c(),
                brewer.palette = "Set1")
   p_r0[[model]] <-
-      ggplot(traces[[model]][["posterior"]][["R0"]], 
+      ggplot(traces[[model]][["posterior"]][["R0"]],
              aes(x = value, color = disease, linetype = setting)) +
       geom_line(stat = "density", adjust = 2, lwd = 2) +
       scale_color_brewer(palette = "Set1")
   p_r0_sqrt[[model]] <-
-      ggplot(traces[[model]][["posterior"]][["R0"]], 
+      ggplot(traces[[model]][["posterior"]][["R0"]],
              aes(x = sqrt(value), color = disease, linetype = setting)) +
       geom_line(stat = "density", adjust = 2, lwd = 2) +
       scale_color_brewer(palette = "Set1")
@@ -505,7 +559,7 @@ r0_gi_summary <- list()
 all_params <- list()
 p_r0vgi <- list()
 
-for (model in models)
+for (model in names(traces))
 {
   param_estimates[[model]] <-
     p_libbi[[model]][["posterior"]]$data$params %>%
@@ -519,19 +573,17 @@ for (model in models)
 
     r0_estimates[[model]] <- p_r0gi[[model]]$data$params %>%
       filter(distribution == "posterior" &
-             parameter == "italic(R)[H %->% H]") %>% 
+             parameter == "italic(R)[H %->% H]") %>%
       group_by(disease, setting) %>%
       summarise(mean = mean(value),
-                median = median(value), 
+                median = median(value),
                 min.1 = quantile(value, 0.25),
                 max.1 = quantile(value, 0.75),
                 min.2 = quantile(value, 0.025),
                 max.2 = quantile(value, 0.975))
 }
 
-models <- c(models, sub("_earlier", "_all", grep("_earlier", models, value = TRUE)))
-
-for (model in models)
+for (model in names(traces))
 {
     ## if (grepl("_all", model))
     ## {
@@ -586,19 +638,20 @@ for (model in models)
     p_r0vgi[[model]] <- ggplot(all_params[[model]] %>% filter(data != "Zika in Fais"),
                                aes(x = GI)) +
         ## geom_jitter(aes(y = R0, color = mosquito.lifespan)) +
-        geom_jitter(aes(y = R0)) +
+        geom_jitter(aes(y = R0, color = factor(p_d_life_m))) +
         facet_grid(~ data) +
         scale_x_continuous("Equilibrium generation interval (weeks)") +
         scale_y_continuous(expression(italic(R)[H %->% H])) +
-        scale_color_brewer("Mosquito life span", palette = "Dark2") +
+        scale_color_brewer("Mosquito life span", palette = "Dark2", labels = c("1 week", "2 weeks")) +
         theme(legend.position = "top")
 }
 
 cross_sections <- data.frame(GI = c(3, 4))
 
-r0vgi_paper <- p_r0vgi[["vbd_fnh"]] +
+r0vgi_paper <- p_r0vgi[["vbd_fnh_all"]] +
   facet_wrap(~ data, scales = "free") +
   geom_rect(data = cross_sections, aes(xmin = GI - 0.1, xmax = GI + 0.1), ymin = -Inf, ymax = Inf, alpha = 0.2, lwd = 3)
+save_plot("r0vgi.pdf", r0vgi_paper, base_aspect_ratio = 2)
 
 ggsave("GI_R0.pdf", p_r0vgi[["vbd_fnh"]], width = 7, height = 2.3)
 
@@ -628,5 +681,13 @@ for (name in names(save_vars))
     assign(name, save_vars[[name]])
 }
 
-save_plot("r0vgi.pdf", r0vgi_paper, base_aspect_ratio = 2)
+## posterior_params <- list()
+## for (model in names(all_params))
+## {
+##     posterior_params[[model]] <- all_params[[model]] %>%
+##         gather(parameter, value, p_b_h:p_t_start) %>%
+##         select(-c(loglikelihood, logprior, GI, R0))
+## }
 
+## posterior_params <- bind_rows(posterior_params) %>%
+##     filter(!is.na(value))
