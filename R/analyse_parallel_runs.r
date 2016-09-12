@@ -380,7 +380,6 @@ all_traces <-
 names(all_traces) <- paste(earlier_models, "all", sep = "_")
 traces <- c(traces, all_traces)
 
-
 all_params <-
     lapply(earlier_models,
            function(model)
@@ -624,8 +623,8 @@ for (model in names(traces))
     ## }
 
     r0_gi_summary[[model]] <- r0_gi[[model]] %>%
-        filter(abs(`italic(G)` - round(2 * `italic(G)`) / 2) < 0.1) %>%
-        mutate(`italic(G)` = round(2 * `italic(G)`) / 2) %>%
+        filter(abs(`italic(G)` - round(`italic(G)`)) < 0.1) %>%
+        mutate(`italic(G)` = round(`italic(G)`)) %>%
         group_by(`italic(G)`, disease, setting) %>%
         summarise(mean = mean(`italic(R)[H %->% H]`, na.rm = TRUE),
                   median = median(`italic(R)[H %->% H]`, na.rm = TRUE),
