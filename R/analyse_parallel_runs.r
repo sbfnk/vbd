@@ -569,9 +569,9 @@ for (model in grep("_earlier$", models, invert = TRUE, value = TRUE))
                              labels = data_labels))
 
     r0_gi_summary[[model]] <- r0_gi[[model]] %>%
-        filter(abs(`italic(G)` - round(`italic(G)`)) < 0.1) %>% 
-        mutate(`italic(G)` = round(`italic(G)`)) %>% 
-        group_by(`italic(G)`, disease, setting) %>%
+        filter(abs(`italic(G)` - round(2 * `italic(G)`) / 2) < 0.1) %>% 
+        mutate(`italic(G)` = round(2 * `italic(G)`) / 2) %>% 
+        group_by(`italic(G)`, disease, setting, mosquito.lifespan) %>%
         summarise(mean = mean(`italic(R)[H %->% H]`, na.rm = TRUE),
                   median = median(`italic(R)[H %->% H]`, na.rm = TRUE),
                   min.1 = quantile(`italic(R)[H %->% H]`, 0.25, na.rm = TRUE),
@@ -596,7 +596,7 @@ r0vgi_paper <- p_r0vgi[["vbd_fnh"]] +
 
 ggsave("GI_R0.pdf", p_r0vgi[["vbd_fnh"]], width = 7, height = 2.3)
 
-two_panels <- plot_grid(p_r0gi[["vbd_fnh"]]$densities + xlab(""),
+two_panels <- plot_grid(p_r0gi[["vbd_fnh_all"]]$densities + xlab(""),
                         r0vgi_paper, 
                         ncol = 2, labels = c("A", "B"))
 save_plot("r0gi_two.pdf", two_panels, ncol = 2, base_aspect_ratio = 1.5)
@@ -613,12 +613,12 @@ save_vars <- list(r0_gi = r0_gi,
                   p_r0_sqrt = p_r0_sqrt)
 
 saveRDS(save_vars, "results.rds")
-## save_vars <- readRDS("results.rds")
+save_vars <- readRDS("results.rds")
 
-## for (name in names(save_vars))
-## {
-##     assign(name, save_vars[[name]])
-## }
+for (name in names(save_vars))
+{
+    assign(name, save_vars[[name]])
+}
 
 cross_sections <- data.frame(GI = c(3, 4))
 
