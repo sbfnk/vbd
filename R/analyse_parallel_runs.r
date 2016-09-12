@@ -171,13 +171,13 @@ for (model in models)
                       filter(!is.na(setting)),
                       bind_rows(params_setting))
 
-            if (grepl("earlier", model))
-            {
-                p_d_life_m <- 1
-            } else
-            {
-                p_d_life_m <- 2
-            }
+            ## if (grepl("earlier", model))
+            ## {
+            ##     p_d_life_m <- 1
+            ## } else
+            ## {
+            ##     p_d_life_m <- 2
+            ## }
 
             littler <- r_tb %>%
                 mutate(setting = factor(setting,
@@ -680,13 +680,5 @@ for (name in names(save_vars))
     assign(name, save_vars[[name]])
 }
 
-## posterior_params <- list()
-## for (model in names(all_params))
-## {
-##     posterior_params[[model]] <- all_params[[model]] %>%
-##         gather(parameter, value, p_b_h:p_t_start) %>%
-##         select(-c(loglikelihood, logprior, GI, R0))
-## }
+save_plot("r0vgi.pdf", r0vgi_paper, base_aspect_ratio = 2)
 
-## posterior_params <- bind_rows(posterior_params) %>%
-##     filter(!is.na(value))
