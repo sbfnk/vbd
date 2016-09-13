@@ -403,7 +403,7 @@ libbi_results <- analyse_traces(c("vbd_sero_fnh", "vbd_sero_fnh_shorter"), outpu
      p$densities
 ```
 
-## Two patches (all three outbreak)
+## Two-patch mode
 
 See instructions in the example above
 
@@ -469,10 +469,9 @@ libbi_results <- analyse_traces(c("vbd_patch_fnh", "vbd_patch_fnh_shorter"), out
      p$densities
 ```
 
-## Two patches (Zika in Yap only)
+### Fitting the Zika outbreak in Yap in isolation
 
-We include this model to show that, in principle, the two-patch model can reproduce the two peaks (but )
-See instructions in the example above
+We include this model to show that, in principle, the two-patch model can reproduce the two peaks.
 
 ```{sh eval = FALSE}
 Rscript dengue_zika_mcmc.r --nsamples 10000000 --pre_samples 10000 --sample-prior --sample-observations --thin 1000 --fix-natural-history --patch --disease zika --setting yap
@@ -485,7 +484,7 @@ Get MCMC chains of the two libbi runs.
 libbi_results <- analyse_traces(c("vbd_patch_fnh_yap_zika", "vbd_patch_fnh_shorter_yap_zika"), output_dir)
 ``` 
 
-### Fits
+Fit
 
 ```{r plot_fits_two_patch_zika_yap}
   libbi_results[["vbd_patch_fnh_yap_zika_all"]][["trace"]][["posterior"]][["Cases"]] <- 
@@ -495,7 +494,7 @@ libbi_results <- analyse_traces(c("vbd_patch_fnh_yap_zika", "vbd_patch_fnh_short
    temp_plot <-
     plot_libbi(read = libbi_results[["vbd_patch_fnh_yap_zika_all"]][["trace"]][["posterior"]]["Cases"],
                model = libbi_results[["vbd_patch_fnh_yap_zika_all"]][["model"]],
-               data = data %>% filter(value > 0 & obs_id = "Zika in Yap"),
+               data = data %>% filter(value > 0 & obs_id == "Zika in Yap"),
                density_args = list(adjust = 2),
                ## densities = "histogram",
                extra.aes = list(group = "obs_id"),
@@ -520,7 +519,7 @@ libbi_results <- analyse_traces(c("vbd_patch_fnh_yap_zika", "vbd_patch_fnh_short
   p_obs
 ```
 
-### Marginal posterior densities
+Marginal posterior densities
 
 ```{r plot_libbi_two_patch_zika_yap, cache = FALSE, fig.height = 8}
       p <-
@@ -536,7 +535,7 @@ libbi_results <- analyse_traces(c("vbd_patch_fnh_yap_zika", "vbd_patch_fnh_short
      p$densities
 ```
 
-### Human-to-human reproduction number vs generation interval
+Human-to-human reproduction number vs generation interval
 
 ```{r r0vgi_patch_zika_yap, cache = FALSE,fig.height = 4}
 temp_plot <-
