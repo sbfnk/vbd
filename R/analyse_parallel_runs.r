@@ -171,13 +171,13 @@ for (model in models)
                       filter(!is.na(setting)),
                       bind_rows(params_setting))
 
-            ## if (grepl("earlier", model))
-            ## {
-            ##     p_d_life_m <- 1
-            ## } else
-            ## {
-            ##     p_d_life_m <- 2
-            ## }
+            if (grepl("earlier", model))
+            {
+                p_d_life_m <- 1
+            } else
+            {
+                p_d_life_m <- 2
+            }
 
             littler <- r_tb %>%
                 mutate(setting = factor(setting,
@@ -352,58 +352,37 @@ for (model in models)
 earlier_models <-
   sub("_earlier$", "", grep("_earlier$", models, value = TRUE))
 
-all_traces <-
-    lapply(earlier_models,
-           function(model)
-           {
-               early_model <- paste(model, "earlier", sep = "_")
-               l <- lapply(names(traces[[model]]),
-               {
-                   function(dist)
-                   {
-                       m <- lapply(names(traces[[model]][[dist]]), function(var)
-                       {
-                           rbind(traces[[model]][[dist]][[var]] %>%
-                                 mutate(p_d_life_m = 2),
-                                 traces[[early_model]][[dist]][[var]] %>%
-                                 mutate(p_d_life_m = 1,
-                                        np = np + 1 + max(traces[[model]][[dist]][["loglikelihood"]][["np"]])))
-                       })
-                       names(m) <- names(traces[[model]][[dist]])
-                       return(m)
-                   }
-               })
-               names(l) <- names(traces[[model]])
-               return(l)
-           })
-
-names(all_traces) <- paste(earlier_models, "all", sep = "_")
-traces <- c(traces, all_traces)
-
-all_params <-
-    lapply(earlier_models,
-           function(model)
-           {
-               early_model <- paste(model, "earlier", sep = "_")
-               l <- lapply(names(params[[model]]),
-                           function(dist)
-                           {
-                             rbind(params[[model]][[dist]] %>%
-                                   mutate(p_d_life_m = 2),
-                                   params[[early_model]][[dist]] %>%
-                                   mutate(p_d_life_m = 1,
-                                          np = np + 1 + max(params[[model]][[dist]][["np"]])))
-                           })
-               names(l) <- names(params[[model]])
-               return(l)
-           })
-
-names(all_params) <- paste(earlier_models, "all", sep = "_")
-params <- c(params, all_params)
-
 for (model in earlier_models)
 {
-    bi_models[[paste(model, "all", sep = "_")]] <- bi_models[[model]]
+    cat(model, "\n")
+    all_model <- paste(model, "all", sep = "_")
+    traces[[all_model]] <- list()
+    params[[all_model]] <- list()
+    early_model <- paste(model, "earlier", sep = "_")
+    bi_models[[all_model]] <- bi_models[[model]]
+    for (dist in names(traces[[model]]))
+    {
+        cat("  ", dist, "\n")
+        max_np <- max(params[[model]][[dist]][["np"]])
+        traces[[all_model]][[dist]] <- list()
+        params[[all_model]][[dist]] <-
+            rbind(params[[model]][[dist]] %>%
+                  mutate(p_d_life_m = 2),
+                  params[[early_model]][[dist]] %>%
+                  mutate(p_d_life_m = 1,
+                         np = np + 1 + max_np))
+
+        for (var in names(traces[[model]][[dist]]))
+        {
+            cat("    ", var, "\n")
+            traces[[all_model]][[dist]][[var]] <-
+                rbind(traces[[model]][[dist]][[var]] %>%
+                      mutate(p_d_life_m = 2),
+                      traces[[early_model]][[dist]][[var]] %>%
+                      mutate(p_d_life_m = 1,
+                             np = np + 1 + max_np))
+        }
+    }
 }
 
 data <- dt_ts %>%
@@ -661,15 +640,17 @@ save_plot("r0gi_two.pdf", two_panels, ncol = 2, base_aspect_ratio = 1.5)
 
 p_densities <- lapply(p_libbi, function(x) { x[["posterior"]][["densities"]]})
 
-save_vars <- list(r0_gi = r0_gi,
-                  r0_estimates = r0_estimates, 
-                  all_params = all_params,
+save_vars <- list(r0_estimates = r0_estimates,
+                  ## r0_gi = r0_gi,
                   r0_gi_summary = r0_gi_summary,
+                  ## param_estimates = param_estimates,
                   p_densities = p_densities,
-                  p_r0vgi = p_r0vgi,
-                  p_r0 = p_r0,
-                  p_r0gi = p_r0gi,
-                  p_r0_sqrt = p_r0_sqrt)
+                  ## p_r0vgi = p_r0vgi,
+                  ## p_r0 = p_r0,
+                  ## p_r0gi = p_r0gi,
+                  ## p_r0_sqrt = p_r0_sqrt,
+                  waic = waic,
+                  dic = dic)
 
 saveRDS(save_vars, "results.rds")
 
