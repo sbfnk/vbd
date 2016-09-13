@@ -18,7 +18,7 @@ Options:
   -i --thin=<thin>                  thin
   -r --sample-prior                 sample prior
   -l --sample-observations          sample observations
-  -d --earlier-death                earlier death of mosquitoes
+  -d --shorter-mosquito-lifespan    earlier death of mosquitoes
   -s --sero                         include sero data
   -j --pop                          reduce population size
   -a --stoch                        stochastic model
