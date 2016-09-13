@@ -288,7 +288,11 @@ libbi_results <- analyse_traces(c("vbd_sero_pop_fnh", "vbd_sero_pop_fnh_shorter"
 ### Fits
 
 ```{r plot_fits_red_pop}
-  temp_plot <-
+  libbi_results[["vbd_sero_pop_fnh_all"]][["trace"]][["posterior"]][["Cases"]] <- 
+    libbi_results[["vbd_sero_pop_fnh_all"]][["trace"]][["posterior"]][["Cases"]] %>% 
+      mutate(obs_id = factor(obs_id, levels = ordered_obs_id_levels,
+                                     labels = data_labels))
+   temp_plot <-
     plot_libbi(read = libbi_results[["vbd_sero_pop_fnh_all"]][["trace"]][["posterior"]]["Cases"],
                model = libbi_results[["vbd_sero_pop_fnh_all"]][["model"]],
                data = data %>% filter(value > 0),
@@ -351,7 +355,11 @@ libbi_results <- analyse_traces(c("vbd_sero_fnh", "vbd_sero_fnh_shorter"), outpu
 ### Fits
 
 ```{r plot_fits_red_susc}
-  temp_plot <-
+  libbi_results[["vbd_sero_fnh_all"]][["trace"]][["posterior"]][["Cases"]] <- 
+    libbi_results[["vbd_sero_fnh_all"]][["trace"]][["posterior"]][["Cases"]] %>% 
+      mutate(obs_id = factor(obs_id, levels = ordered_obs_id_levels,
+                                     labels = data_labels))
+   temp_plot <-
     plot_libbi(read = libbi_results[["vbd_sero_fnh_all"]][["trace"]][["posterior"]]["Cases"],
                model = libbi_results[["vbd_sero_fnh_all"]][["model"]],
                data = data %>% filter(value > 0),
@@ -413,7 +421,11 @@ libbi_results <- analyse_traces(c("vbd_patch_fnh", "vbd_patch_fnh_shorter"), out
 ### Fits
 
 ```{r plot_fits_two_patch}
-  temp_plot <-
+  libbi_results[["vbd_patch_fnh_all"]][["trace"]][["posterior"]][["Cases"]] <- 
+    libbi_results[["vbd_patch_fnh_all"]][["trace"]][["posterior"]][["Cases"]] %>% 
+      mutate(obs_id = factor(obs_id, levels = ordered_obs_id_levels,
+                                     labels = data_labels))
+   temp_plot <-
     plot_libbi(read = libbi_results[["vbd_patch_fnh_all"]][["trace"]][["posterior"]]["Cases"],
                model = libbi_results[["vbd_patch_fnh_all"]][["model"]],
                data = data %>% filter(value > 0),
@@ -476,7 +488,11 @@ libbi_results <- analyse_traces(c("vbd_patch_fnh_yap_zika", "vbd_patch_fnh_short
 ### Fits
 
 ```{r plot_fits_two_patch_zika_yap}
-  temp_plot <-
+  libbi_results[["vbd_patch_fnh_yap_zika_all"]][["trace"]][["posterior"]][["Cases"]] <- 
+    libbi_results[["vbd_patch_fnh_yap_zika_all"]][["trace"]][["posterior"]][["Cases"]] %>% 
+      mutate(obs_id = factor(obs_id, levels = ordered_obs_id_levels,
+                                     labels = data_labels))
+   temp_plot <-
     plot_libbi(read = libbi_results[["vbd_patch_fnh_yap_zika_all"]][["trace"]][["posterior"]]["Cases"],
                model = libbi_results[["vbd_patch_fnh_yap_zika_all"]][["model"]],
                data = data %>% filter(value > 0 & obs_id = "Zika in Yap"),
