@@ -63,7 +63,7 @@ code_dir <- "~/code/vbd/"
 ```
 
 Load required packages
-```{r load}
+```{r load, cache = FALSE}
 for (package in c(cran_packages, github_packages))
 {
     library(sub("^.*/", "", package), character.only = TRUE)
