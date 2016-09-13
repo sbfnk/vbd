@@ -55,7 +55,7 @@ seed <- as.integer(opts[["seed"]])
 thin <- as.integer(opts[["thin"]])
 output_file_name <- opts[["output"]]
 model_file <- opts[["model-file"]]
-earlier_death <- opts[["earlier-death"]]
+earlier_death <- opts[["shorter-mosquito-lifespan"]]
 sample_obs <- opts[["sample-observations"]]
 sample_prior <- opts[["sample-prior"]]
 sero <- opts[["sero"]]
@@ -213,7 +213,7 @@ if (!noise)
 if (length(output_file_name) == 0)
 {
     filebase <- "vbd"
-    output_file_name <- paste0(data_dir, "/", filebase, ifelse(stoch, "_stoch", ""), ifelse(noise, "_noise", ""), ifelse(fix_move, "_move", ""), ifelse(sero, "_sero", ""), ifelse(pop, "_pop", ""), ifelse(patch, "_patch", ""), ifelse(reverse, "_reverse", ""), ifelse(fix_natural_history, "_fnh", ""), ifelse(earlier_death, "_earlier", ""), ifelse(nrow(analyses) == 1, paste("", as.character(analyses[1, "setting"]), as.character(analyses[1, "disease"]), sep = "_"), ""),  ifelse(length(par_nb) == 0, "", paste0("_", par_nb)))
+    output_file_name <- paste0(data_dir, "/", filebase, ifelse(stoch, "_stoch", ""), ifelse(noise, "_noise", ""), ifelse(fix_move, "_move", ""), ifelse(sero, "_sero", ""), ifelse(pop, "_pop", ""), ifelse(patch, "_patch", ""), ifelse(reverse, "_reverse", ""), ifelse(fix_natural_history, "_fnh", ""), ifelse(earlier_death, "_shorter", ""), ifelse(nrow(analyses) == 1, paste("", as.character(analyses[1, "setting"]), as.character(analyses[1, "disease"]), sep = "_"), ""),  ifelse(length(par_nb) == 0, "", paste0("_", par_nb)))
 }
 cat("Output: ",  output_file_name, "\n")
 
