@@ -198,6 +198,9 @@ labels <- c(p_d_inc_h = "italic(D)[plain(inc,H)]",
             p_b_h = "italic(b)[H]",
             p_b_m = "italic(b)[M]",
             p_t_start = "italic(t[0])",
+            p_pop_yap = "italic(rho)",
+            p_red_foi_yap = "italic(sigma)",
+            p_p_patch = "italic(phi)",
             R0 = "italic(R)[H %->% H]",
             GI = "italic(G)",
             zika = "Zika",
@@ -272,7 +275,9 @@ p$traces
 ## Reduced population size in Yap
 ### Generate MCMC chains
 
-See instructions in the example above
+In this model, the population in Yap is reduced by a factor $rho$.
+
+Fit the model (remember to update `code_dir` and `data_dir` in `dengue_zika_mcmc.r`):
 
 ```{sh eval = FALSE}
 Rscript dengue_zika_mcmc.r --nsamples 10000000 --pre_samples 10000 --sample-prior --sample-observations --thin 1000 --fix-natural-history --sero --pop
@@ -339,14 +344,16 @@ libbi_results <- analyse_traces(c("vbd_sero_pop_fnh", "vbd_sero_pop_fnh_shorter"
 ## Reduced susceptibility against Zika in Yap
 ### Generate MCMC chains
 
-See instructions in the example above
+In this model, the population susceptible to Zika in Yap is reduced by a factor $r$.
+
+Fit the model (remember to update `code_dir` and `data_dir` in `dengue_zika_mcmc.r`):
 
 ```{sh eval = FALSE}
 Rscript dengue_zika_mcmc.r --nsamples 10000000 --pre_samples 10000 --sample-prior --sample-observations --thin 1000 --fix-natural-history --sero 
 Rscript dengue_zika_mcmc.r --nsamples 10000000 --pre_samples 10000 --sample-prior --sample-observations --thin 1000 --fix-natural-history --shorter-mosquito-lifespan --sero
 ```
 
-Get MCMC chains of the two libbi runs.
+Get MCMC chains of the two libbi runs
 
 ```{r get_chains_red_susc}
 libbi_results <- analyse_traces(c("vbd_sero_fnh", "vbd_sero_fnh_shorter"), output_dir)
@@ -405,7 +412,9 @@ libbi_results <- analyse_traces(c("vbd_sero_fnh", "vbd_sero_fnh_shorter"), outpu
 
 ## Two-patch model
 
-See instructions in the example above
+In this model, the outbreak starts in a patch which contains a proportion of the population $\phi$ of the population. This and another patch share the same parameters, and exert a force of infection on each other that is reduced by a factor $\sigma$ with respect to the force of infection within each patch.
+
+Fit the model (remember to update `code_dir` and `data_dir` in `dengue_zika_mcmc.r`):
 
 ```{sh eval = FALSE}
 Rscript dengue_zika_mcmc.r --nsamples 10000000 --pre_samples 10000 --sample-prior --sample-observations --thin 1000 --fix-natural-history --patch
