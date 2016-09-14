@@ -252,16 +252,15 @@ analyse_traces <- function(models, dir)
 
     ## join models with different mosquito lifetimes
 
-    shorter_models <-
-        intersect(sub("_shorter", "", grep("_shorter", models, value = TRUE)),
-                  models)
+    shorter_models <- grep("_shorter", models, value = TRUE)
+    all_models <- shorter_models[which(sub("_shorter", "", shorter_models) %in% models)]
 
-    for (model in shorter_models)
+    for (short_model in all_models)
     {
+	model <- sub("_shorter", "", short_model)
         all_model <- paste(model, "all", sep = "_")
         message(all_model)
         res[[all_model]][["trace"]] <- list()
-        short_model <- paste(model, "shorter", sep = "_")
         res[[all_model]][["model"]] <- res[[model]][["model"]]
         res[[all_model]][["obs"]] <- res[[model]][["obs"]]
         for (dist in names(res[[model]][["trace"]]))
