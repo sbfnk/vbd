@@ -12,7 +12,7 @@ knitr::opts_chunk$set(cache = TRUE, fig.cap = '', fig.align = "center", message 
 
 # Introduction
 
-This document contains the R code necessary to reproduce the results in "Comparative analysis of dengue and Zika outbreaks reveals differences by setting and virus." All code and data used here are in a [github repository](http://github.com/sbfnk/vbd).
+This document contains the R code necessary to reproduce the results in "Comparative analysis of dengue and Zika outbreaks reveals differences by setting and virus." All code and data used here are in a [github repository](http://github.com/sbfnk/vbd). The data sets for the three outbreaks are contained in the `data` subdirectory.
 
 ## Required packages
 ```{r packages}
@@ -200,7 +200,7 @@ labels <- c(p_d_inc_h = "italic(D)[plain(inc,H)]",
             p_t_start = "italic(t[0])",
             p_pop_yap = "italic(rho)",
             p_red_foi_yap = "italic(sigma)",
-            p_p_patch = "italic(phi)",
+            p_p_patch_yap = "italic(phi)",
             R0 = "italic(R)[H %->% H]",
             GI = "italic(G)",
             zika = "Zika",
@@ -481,6 +481,8 @@ libbi_results <- analyse_traces(c("vbd_patch_fnh", "vbd_patch_fnh_shorter"), out
 ### Fitting the Zika outbreak in Yap in isolation
 
 We include this model to show that, in principle, the two-patch model can reproduce the two peaks.
+
+Fit the model (remember to update `code_dir` and `data_dir` in `dengue_zika_mcmc.r`):
 
 ```{sh eval = FALSE}
 Rscript dengue_zika_mcmc.r --nsamples 10000000 --pre_samples 10000 --sample-prior --sample-observations --thin 1000 --fix-natural-history --patch --disease zika --setting yap
