@@ -4,6 +4,8 @@ author: 'Comparative analysis of dengue and Zika outbreaks reveals differences b
 output:
   html_document:
     self_contained: true
+    toc: true
+    toc_depth: 3
 ---
 
 ```{r setup, echo = FALSE, cache = FALSE}
@@ -271,6 +273,8 @@ p$traces
 ```
 
 # Other models 
+
+These are the alternative models considered and mentioned in the manuscript.
 
 ## Reduced population size in Yap
 ### Generate MCMC chains
