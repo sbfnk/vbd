@@ -1,6 +1,7 @@
 ---
 title: 'S1 Text: Modelling results'
 author: 'Comparative analysis of dengue and Zika outbreaks reveals differences by setting and virus'
+date: 'Sebastian Funk, Adam J. Kucharski, Anton Camacho, Rosalind M. Eggo, Laith Yakob, Lawrence Murray, W. John Edmunds'
 output:
   html_document:
     self_contained: true
