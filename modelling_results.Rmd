@@ -38,7 +38,7 @@ for (package in github_packages)
 
 # Generate MCMC chains
 
-Generating MCMC chains requires a working install of [libbi](http://libbi.org/) v1.2.0.
+Generating MCMC chains requires a working installation of [libbi](http://libbi.org/) v1.2.0. The model code is in [vbd.bi](https://github.com/sbfnk/vbd/blob/master/bi/vbd.bi), which is run by the R script [dengue_zika_mcmc.r](https://github.com/sbfnk/vbd/blob/master/R/dengue_zika_mcmc.r).
 
 Edit the lines starting `code_dir <- ` and `output_dir <-` in the script 'dengue_zika_mcmc.r' from the R/ directory in the github repository to point to the correct directories, and run it using
 
@@ -217,7 +217,7 @@ labels <- c(p_d_inc_h = "italic(D)[plain(inc,H)]",
           plot_libbi(read = libbi_results[["vbd_fnh_all"]][["trace"]][["posterior"]],
                      prior = libbi_results[["vbd_fnh_all"]][["trace"]][["prior"]],
                      model = libbi_results[["vbd_fnh_all"]][["model"]],
-                     density_args = list(bins = 20, alpha = 0.5),
+                     density_args = list(bins = 20, alpha = 0.5, color = "black"),
                      densities = "histogram",
                      extra.aes = list(color = "disease", linetype = "setting"),
                      trend = "median", plot = FALSE,
@@ -334,7 +334,7 @@ libbi_results <- analyse_traces(c("vbd_sero_pop_fnh", "vbd_sero_pop_fnh_shorter"
           plot_libbi(read = libbi_results[["vbd_sero_pop_fnh_all"]][["trace"]][["posterior"]],
                      prior = libbi_results[["vbd_sero_pop_fnh_all"]][["trace"]][["prior"]],
                      model = libbi_results[["vbd_sero_pop_fnh_all"]][["model"]],
-                     density_args = list(bins = 20, alpha = 0.5),
+                     density_args = list(bins = 20, alpha = 0.5, color = "black"),
                      densities = "histogram",
                      extra.aes = list(color = "disease", linetype = "setting"),
                      trend = "median", plot = FALSE,
@@ -410,7 +410,7 @@ libbi_results <- analyse_traces(c("vbd_sero_fnh", "vbd_sero_fnh_shorter"), outpu
           plot_libbi(read = libbi_results[["vbd_sero_fnh_all"]][["trace"]][["posterior"]],
                      prior = libbi_results[["vbd_sero_fnh_all"]][["trace"]][["prior"]],
                      model = libbi_results[["vbd_sero_fnh_all"]][["model"]],
-                     density_args = list(bins = 20, alpha = 0.5),
+                     density_args = list(bins = 20, alpha = 0.5, color = "black"),
                      densities = "histogram",
                      extra.aes = list(color = "disease", linetype = "setting"),
                      trend = "median", plot = FALSE,
@@ -428,8 +428,6 @@ n_infected / N
 ```
 
 ## Two-patch model
-
-In this model, the outbreak starts in a patch which contains a proportion of the population $\phi$ of the population. This and another patch share the same parameters, and exert a force of infection on each other that is reduced by a factor $\sigma$ with respect to the force of infection within each patch.
 
 Fit the model (remember to update `code_dir` and `data_dir` in `dengue_zika_mcmc.r`):
 
@@ -485,7 +483,7 @@ libbi_results <- analyse_traces(c("vbd_patch_fnh", "vbd_patch_fnh_shorter"), out
           plot_libbi(read = libbi_results[["vbd_patch_fnh_all"]][["trace"]][["posterior"]],
                      prior = libbi_results[["vbd_patch_fnh_all"]][["trace"]][["prior"]],
                      model = libbi_results[["vbd_patch_fnh_all"]][["model"]],
-                     density_args = list(bins = 20, alpha = 0.5),
+                     density_args = list(bins = 20, alpha = 0.5, color = "black"),
                      densities = "histogram",
                      extra.aes = list(color = "disease", linetype = "setting"),
                      trend = "median", plot = FALSE,
@@ -495,8 +493,6 @@ libbi_results <- analyse_traces(c("vbd_patch_fnh", "vbd_patch_fnh_shorter"), out
 ```
 
 ### Fitting the Zika outbreak in Yap in isolation
-
-We include this model to show that, in principle, the two-patch model can reproduce the two peaks.
 
 Fit the model (remember to update `code_dir` and `data_dir` in `dengue_zika_mcmc.r`):
 
@@ -554,7 +550,7 @@ Marginal posterior densities
           plot_libbi(read = libbi_results[["vbd_patch_fnh_yap_zika_all"]][["trace"]][["posterior"]],
                      prior = libbi_results[["vbd_patch_fnh_yap_zika_all"]][["trace"]][["prior"]],
                      model = libbi_results[["vbd_patch_fnh_yap_zika_all"]][["model"]],
-                     density_args = list(bins = 20, alpha = 0.5),
+                     density_args = list(bins = 20, alpha = 0.5, color = "black"),
                      densities = "histogram",
                      extra.aes = list(color = "disease", linetype = "setting"),
                      trend = "median", plot = FALSE,
