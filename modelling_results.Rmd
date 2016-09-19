@@ -423,7 +423,7 @@ libbi_results <- analyse_traces(c("vbd_sero_fnh", "vbd_sero_fnh_shorter"), outpu
 
 ```{r final_size_sero}
 n_infected <- libbi_results[["vbd_sero_fnh_all"]][["trace"]][["posterior"]][["final_size"]] %>% filter(obs_id == "yap_zika") %>% .$value %>% quantile(c(0.025, 0.5, 0.975)) 
-N <- libbi_results[["vbd_sero_pop_all"]][["trace"]][["posterior"]][["p_N_h"]] %>% filter(setting == "yap") %>% .$value %>% mean
+N <- libbi_results[["vbd_sero_fnh_all"]][["trace"]][["posterior"]][["p_N_h"]] %>% filter(setting == "yap") %>% .$value %>% mean
 n_infected / N
 ```
 
