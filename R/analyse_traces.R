@@ -3,7 +3,7 @@ analyse_traces <- function(models, dir)
 
     require('dplyr')
     require('tidyr')
-    require('RBi')
+    require('rbi')
     require('msm')
 
     res <- list()
