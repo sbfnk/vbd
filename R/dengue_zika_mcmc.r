@@ -75,8 +75,8 @@ noise <- opts[["noise"]]
 
 library('dplyr')
 library('tidyr')
-library('RBi')
-library('RBi.helpers')
+library('rbi')
+library('rbi.helpers')
 library('cowplot')
 library('stringi')
 library('truncnorm')
