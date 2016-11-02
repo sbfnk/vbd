@@ -19,8 +19,8 @@ This document contains the R code necessary to reproduce the results in "Compara
 
 ## Required packages
 ```{r packages}
-cran_packages <- c("cowplot", "dplyr", "tidyr", "stringi", "msm")
-github_packages <- c("libbi/RBi", "sbfnk/RBi.helpers")
+cran_packages <- c("cowplot", "dplyr", "tidyr", "stringi", "msm", "rbi")
+github_packages <- c("sbfnk/RBi.helpers")
 ```
 
 ```{r install, eval = FALSE}
@@ -69,7 +69,7 @@ Load required packages
 ```{r load, cache = FALSE}
 for (package in c(cran_packages, github_packages))
 {
-    library(sub("^.*/", "", package), character.only = TRUE)
+    library(tolower(sub("^.*/", "", package)), character.only = TRUE)
 }
 ```
 
@@ -595,4 +595,3 @@ p_r0vgi <- ggplot(r0gi, aes(x = `italic(G)`)) +
         geom_rect(data = cross_sections, aes(xmin = `italic(G)` - 0.1, xmax = `italic(G)` + 0.1), ymin = -Inf, ymax = Inf, alpha = 0.2, lwd = 3)
 p_r0vgi
 ```
-
