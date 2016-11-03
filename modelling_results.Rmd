@@ -254,16 +254,28 @@ r0gi <- temp_plot$data$params %>%
 cross_sections <- data.frame(GI = c(3, 4))
 colnames(cross_sections) <- "italic(G)"
 
-p_r0vgi <- ggplot(r0gi, aes(x = `italic(G)`)) +
+p_r0vgi <- ggplot(r0gi, aes(x = `italic(G)` * 7)) +
         geom_jitter(aes(y = `italic(R)[H %->% H]`, color = factor(p_d_life_m))) +
         facet_grid(~ obs_id) +
-        scale_x_continuous("Equilibrium generation interval (weeks)") +
+        scale_x_continuous("Equilibrium generation interval (days)") +
         scale_y_continuous(expression(italic(R)[H %->% H])) +
         scale_color_brewer("Mosquito life span", palette = "Dark2", labels = c("1 week", "2 weeks")) +
         theme(legend.position = "top") + 
         facet_wrap(~ obs_id, scales = "free") +
-        geom_rect(data = cross_sections, aes(xmin = `italic(G)` - 0.1, xmax = `italic(G)` + 0.1), ymin = -Inf, ymax = Inf, alpha = 0.2, lwd = 3)
+        geom_rect(data = cross_sections, aes(xmin = `italic(G)` * 7 - 1, xmax = `italic(G)` * 7 + 1), ymin = -Inf, ymax = Inf, alpha = 0.2, lwd = 3)
 p_r0vgi
+ggsave("r0vgi.pdf", p_r0vgi, height = 4, width = 8)
+
+quantile_probs <- c(0.5, 0.25, 0.75, 0.025, 0.975)
+
+r0gi %>% 
+  filter(abs(`italic(G)` - round(`italic(G)`)) <= 1/7) %>% 
+  mutate(GI = round(`italic(G)`)) %>% 
+  filter(GI %in% c(3, 4)) %>% 
+  group_by(disease, setting, GI) %>% 
+  do(data.frame(prob = factor(quantile_probs, levels = quantile_probs), 
+                value = quantile(.$`italic(R)[H %->% H]`, quantile_probs))) %>% 
+  spread(prob, value)
 ```
 
 ### Traces
@@ -584,14 +596,14 @@ r0gi <- temp_plot$data$params %>%
                                labels = data_labels)) %>%
     spread(parameter, value)
 
-p_r0vgi <- ggplot(r0gi, aes(x = `italic(G)`)) +
+p_r0vgi <- ggplot(r0gi, aes(x = `italic(G)` * 7)) +
         geom_jitter(aes(y = `italic(R)[H %->% H]`, color = factor(p_d_life_m))) +
         facet_grid(~ obs_id) +
-        scale_x_continuous("Equilibrium generation interval (weeks)") +
+        scale_x_continuous("Equilibrium generation interval (days)") +
         scale_y_continuous(expression(italic(R)[H %->% H])) +
         scale_color_brewer("Mosquito life span", palette = "Dark2", labels = c("1 week", "2 weeks")) +
         theme(legend.position = "top") + 
         facet_wrap(~ obs_id, scales = "free") +
-        geom_rect(data = cross_sections, aes(xmin = `italic(G)` - 0.1, xmax = `italic(G)` + 0.1), ymin = -Inf, ymax = Inf, alpha = 0.2, lwd = 3)
+        geom_rect(data = cross_sections, aes(xmin = `italic(G)` * 7 - 1, xmax = `italic(G)` * 7 + 1), ymin = -Inf, ymax = Inf, alpha = 0.2, lwd = 3)
 p_r0vgi
 ```
