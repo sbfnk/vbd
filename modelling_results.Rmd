@@ -154,7 +154,7 @@ data <- data %>%
 ## Fits
 
 
-```{r plot_fits}
+```{r plot_fits, fig.height = 3}
   libbi_results[["vbd_fnh_all"]][["trace"]][["posterior"]][["Cases"]] <- 
     libbi_results[["vbd_fnh_all"]][["trace"]][["posterior"]][["Cases"]] %>% 
       mutate(obs_id = factor(obs_id, levels = ordered_obs_id_levels,
@@ -175,6 +175,7 @@ data <- data %>%
       geom_point(data = data, mapping = aes(y = value)) +
       facet_wrap(~ obs_id, scales = "free") +
       scale_x_date("Week", labels = scales::date_format("%e %b %Y")) +
+      theme_cowplot(font_size = 12) +
       theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
       facet_wrap(~ obs_id, scales = "free") +
       scale_y_continuous("Disease incidence") +
@@ -229,7 +230,7 @@ labels <- c(p_d_inc_h = "italic(D)[plain(inc,H)]",
 
 ### Human-to-human reproduction number vs generation interval
 
-```{r r0vgi, cache = FALSE,fig.height = 4}
+```{r r0vgi, cache = FALSE,fig.height = 3}
 temp_plot <-
     plot_libbi(read = libbi_results[["vbd_fnh_all"]][["trace"]][["posterior"]],
                prior = libbi_results[["vbd_fnh_all"]][["trace"]][["prior"]],
@@ -260,6 +261,7 @@ p_r0vgi <- ggplot(r0gi, aes(x = `italic(G)` * 7)) +
         scale_x_continuous("Equilibrium generation interval (days)") +
         scale_y_continuous(expression(italic(R)[H %->% H])) +
         scale_color_brewer("Mosquito life span", palette = "Dark2", labels = c("1 week", "2 weeks")) +
+        theme_cowplot(font_size = 12) +
         theme(legend.position = "top") + 
         facet_wrap(~ obs_id, scales = "free") +
         geom_rect(data = cross_sections, aes(xmin = `italic(G)` * 7 - 1, xmax = `italic(G)` * 7 + 1), ymin = -Inf, ymax = Inf, alpha = 0.2, lwd = 3)
@@ -329,6 +331,7 @@ libbi_results <- analyse_traces(c("vbd_sero_pop_fnh", "vbd_sero_pop_fnh_shorter"
       geom_point(data = data, mapping = aes(y = value)) +
       facet_wrap(~ obs_id, scales = "free") +
       scale_x_date("Week", labels = scales::date_format("%e %b %Y")) +
+      theme_cowplot(font_size = 12) +
       theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
       facet_wrap(~ obs_id, scales = "free") +
       scale_y_continuous("Disease incidence") +
@@ -405,6 +408,7 @@ libbi_results <- analyse_traces(c("vbd_sero_fnh", "vbd_sero_fnh_shorter"), outpu
       geom_point(data = data, mapping = aes(y = value)) +
       facet_wrap(~ obs_id, scales = "free") +
       scale_x_date("Week", labels = scales::date_format("%e %b %Y")) +
+      theme_cowplot(font_size = 12) +
       theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
       facet_wrap(~ obs_id, scales = "free") +
       scale_y_continuous("Disease incidence") +
@@ -478,6 +482,7 @@ libbi_results <- analyse_traces(c("vbd_patch_fnh", "vbd_patch_fnh_shorter"), out
       geom_point(data = data, mapping = aes(y = value)) +
       facet_wrap(~ obs_id, scales = "free") +
       scale_x_date("Week", labels = scales::date_format("%e %b %Y")) +
+      theme_cowplot(font_size = 12) +
       theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
       facet_wrap(~ obs_id, scales = "free") +
       scale_y_continuous("Disease incidence") +
@@ -545,6 +550,7 @@ Fit
       geom_point(data = data %>% filter(obs_id == "Zika in Yap"), mapping = aes(y = value)) +
       facet_wrap(~ obs_id, scales = "free") +
       scale_x_date("Week", labels = scales::date_format("%e %b %Y")) +
+      theme_cowplot(font_size = 12) +
       theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
       facet_wrap(~ obs_id, scales = "free") +
       scale_y_continuous("Disease incidence") +
@@ -574,7 +580,7 @@ Marginal posterior densities
 
 Human-to-human reproduction number vs generation interval
 
-```{r r0vgi_patch_zika_yap, cache = FALSE,fig.height = 4}
+```{r r0vgi_patch_zika_yap, cache = FALSE,fig.height = 3}
 temp_plot <-
     plot_libbi(read = libbi_results[["vbd_patch_fnh_yap_zika_all"]][["trace"]][["posterior"]],
                prior = libbi_results[["vbd_patch_fnh_yap_zika_all"]][["trace"]][["prior"]],
@@ -602,6 +608,7 @@ p_r0vgi <- ggplot(r0gi, aes(x = `italic(G)` * 7)) +
         scale_x_continuous("Equilibrium generation interval (days)") +
         scale_y_continuous(expression(italic(R)[H %->% H])) +
         scale_color_brewer("Mosquito life span", palette = "Dark2", labels = c("1 week", "2 weeks")) +
+        theme_cowplot(font_size = 12) +
         theme(legend.position = "top") + 
         facet_wrap(~ obs_id, scales = "free") +
         geom_rect(data = cross_sections, aes(xmin = `italic(G)` * 7 - 1, xmax = `italic(G)` * 7 + 1), ymin = -Inf, ymax = Inf, alpha = 0.2, lwd = 3)
