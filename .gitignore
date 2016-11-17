@@ -20,3 +20,7 @@ vignettes/*.pdf
 
 # annoying OSX files
 .DS_Store
+
+# markdown files
+*_files/
+*_cache/
