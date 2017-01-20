@@ -1,4 +1,4 @@
-model vbd {
+model vbd_yap_fais {
 
   const e_setting = 2 // 0 = yap, 1 = fais
   const e_disease = 2 // 0 = dengue, 1 = zika
