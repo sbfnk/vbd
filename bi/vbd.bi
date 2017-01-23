@@ -7,6 +7,7 @@ model vbd {
   param p_d_inf_h // infectious period of mosquitoes
 
   param p_p_risk // proportion of the population at risk
+  param p_p_immune // proportion of the population at risk
 
   param p_R0 // human-to-human basic reproduction number
 
@@ -25,6 +26,7 @@ model vbd {
   state I (has_output = 0) // infectious
   state R (has_output = 0) // recovered
   state Z // incidence accumulator
+  state beta
 
   // auxiliary variable
   state next_obs (has_output = 0) // time of next observation (recorded for incidence calculation)
@@ -40,7 +42,8 @@ model vbd {
     // 95% approximately 2 * std away from the mean, 1.5d shift see Ferguson et al., science
     p_d_inf_h ~ truncated_gaussian(mean = (5.9 - 1.5)/7, std = 0.25/7, lower = 0)
 
-    p_p_risk ~ uniform(lower = 0, upper = 1)
+    p_p_immune ~ uniform(lower = 0.1, upper = 1)
+    p_p_risk ~ uniform(lower = 0.1, upper = 1)
     p_R0 ~ uniform(lower = 0, upper = 10)
 
     p_s_amp ~ uniform(lower = 0, upper = 1)
@@ -48,7 +51,7 @@ model vbd {
 
     // uninformed prior
     p_p_rep ~ uniform(lower = 0, upper = 1)
-    // strongly regularising prior
+    // regularising prior
     p_rep_over ~ gamma(shape = 1, scale = 0.01)
 
     // weak prior on I
@@ -56,12 +59,13 @@ model vbd {
   }
 
   sub initial {
-    S <- max(N * p_p_risk - initI, 0)
+    S <- max(N * (1 - p_p_immune) * p_p_risk - initI, 0)
     E <- 0
     I <- initI
-    R <- 0
+    R <- N * p_p_immune * p_p_risk
     Z <- 0
     next_obs <- 0
+    beta <- p_R0/p_d_inf_h * (1 + p_s_amp*cos(6.283*(-p_s_peak)/52))
   }
 
   sub transition {
@@ -75,9 +79,11 @@ model vbd {
     // set next_obs to the time of the next observation
     next_obs <- (t_next_obs > next_obs ? t_next_obs : next_obs)
 
+    beta <- infection_rate*(1+p_s_amp*cos(6.283*(t_now-p_s_peak)/52))
+
     ode {
-      dS/dt = -infection_rate*(1+p_s_amp*cos(6.28*(t_now-p_s_peak)))*S*I/N
-      dE/dt = +infection_rate*(1+p_s_amp*cos(6.28*(t_now-p_s_peak)))*S*I/N-incubation_rate*E
+      dS/dt = -beta*S*I/N
+      dE/dt = +beta*S*I/N-incubation_rate*E
       dI/dt = +incubation_rate*E-recovery_rate*I
       dR/dt = +recovery_rate*I
       dZ/dt = +incubation_rate*E
