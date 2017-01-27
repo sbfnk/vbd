@@ -42,12 +42,12 @@ model vbd {
     // 95% approximately 2 * std away from the mean, 1.5d shift see Ferguson et al., science
     p_d_inf_h ~ truncated_gaussian(mean = (5.9 - 1.5)/7, std = 0.25/7, lower = 0)
 
-    p_p_immune ~ uniform(lower = 0.1, upper = 1)
+    p_p_immune ~ gamma(shape = 1, scale = 0.06)
     p_p_risk ~ uniform(lower = 0.1, upper = 1)
-    p_R0 ~ uniform(lower = 0, upper = 10)
+    p_R0 ~ uniform(lower = 0, upper = 25)
 
     p_s_amp ~ uniform(lower = 0, upper = 1)
-    p_s_peak ~ normal(mean = 9, std = 4.5)
+    p_s_peak ~ gaussian(mean = 20, std = 2)
 
     // uninformed prior
     p_p_rep ~ uniform(lower = 0, upper = 1)
@@ -81,9 +81,9 @@ model vbd {
 
     beta <- infection_rate*(1+p_s_amp*cos(6.283*(t_now-p_s_peak)/52))
 
-    ode {
-      dS/dt = -beta*S*I/N
-      dE/dt = +beta*S*I/N-incubation_rate*E
+    ode (h=0.1,atoler=1e-4,rtoler=1e-4) {
+      dS/dt = -beta*S*I/(N*p_p_risk)
+      dE/dt = +beta*S*I/(N*p_p_risk)-incubation_rate*E
       dI/dt = +incubation_rate*E-recovery_rate*I
       dR/dt = +recovery_rate*I
       dZ/dt = +incubation_rate*E
@@ -94,6 +94,6 @@ model vbd {
     // cases: (approximately) binomial
     Incidence ~ gaussian(mean = p_p_rep * Z, std = sqrt(p_p_rep * Z + p_p_rep**2 * Z**2 * p_rep_over**2))
     // serology: (approximately) binomial
-    Serology ~ gaussian(mean = serology_sample * R / (p_p_risk * N), std = sqrt(serology_sample * R / (p_p_risk * N) * (1 - R / (p_p_risk * N))))
+    Serology ~ gaussian(mean = serology_sample * R / N, std = sqrt(serology_sample * R / N * (1 - R / N)))
   }
 }
