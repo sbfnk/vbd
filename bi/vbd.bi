@@ -12,7 +12,7 @@ model vbd {
   param p_R0 // human-to-human basic reproduction number
 
   param p_p_rep // proportion of cases reported
-  param p_rep_over // overdispersion of case reporting
+  param p_p_over // overdispersion of reporting
 
   param p_s_peak // seasonal peak week
   param p_s_amp // strength of seasonal forcing
@@ -25,8 +25,8 @@ model vbd {
   state E (has_output = 0) // incubating
   state I (has_output = 0) // infectious
   state R (has_output = 0) // recovered
-  state Z // incidence accumulator
-  state beta
+  state Z (has_output = 0) // incidence accumulator
+  state beta_track
 
   // auxiliary variable
   state next_obs (has_output = 0) // time of next observation (recorded for incidence calculation)
@@ -51,11 +51,12 @@ model vbd {
 
     // uninformed prior
     p_p_rep ~ uniform(lower = 0, upper = 1)
-    // regularising prior
-    p_rep_over ~ gamma(shape = 1, scale = 0.01)
 
     // weak prior on I
     initI ~ gamma(shape = 1, scale = 10)
+
+    // weak prior on p_p_over
+    p_p_over ~ beta(1, 5)
   }
 
   sub initial {
@@ -65,7 +66,7 @@ model vbd {
     R <- N * p_p_immune * p_p_risk
     Z <- 0
     next_obs <- 0
-    beta <- p_R0/p_d_inf_h * (1 + p_s_amp*cos(6.283*(-p_s_peak)/52))
+    beta_track <- p_R0/p_d_inf_h * (1 + p_s_amp*cos(6.283*(-p_s_peak)/52))
   }
 
   sub transition {
@@ -74,14 +75,17 @@ model vbd {
     inline recovery_rate = 1/p_d_inf_h
     inline infection_rate = p_R0/p_d_inf_h
 
+    inline beta = infection_rate*(1+p_s_amp*cos(6.283*(t_now-p_s_peak)/52))
+
+    beta_track <- beta
+
     // reset accumulator if t_next_obs > next_obs
     Z <- (t_next_obs > next_obs ? 0 : Z)
     // set next_obs to the time of the next observation
     next_obs <- (t_next_obs > next_obs ? t_next_obs : next_obs)
 
-    beta <- infection_rate*(1+p_s_amp*cos(6.283*(t_now-p_s_peak)/52))
 
-    ode (h=0.1,atoler=1e-4,rtoler=1e-4) {
+    ode (alg='RK4',h=0.001) {
       dS/dt = -beta*S*I/(N*p_p_risk)
       dE/dt = +beta*S*I/(N*p_p_risk)-incubation_rate*E
       dI/dt = +incubation_rate*E-recovery_rate*I
@@ -92,8 +96,8 @@ model vbd {
 
   sub observation {
     // cases: (approximately) binomial
-    Incidence ~ gaussian(mean = p_p_rep * Z, std = sqrt(p_p_rep * Z + p_p_rep**2 * Z**2 * p_rep_over**2))
+    Incidence ~ truncated_gaussian(mean = p_p_rep * Z, std = sqrt(p_p_rep * Z / p_p_over), lower=0)
     // serology: (approximately) binomial
-    Serology ~ gaussian(mean = serology_sample * R / N, std = sqrt(serology_sample * R / N * (1 - R / N)))
+    Serology ~ gaussian(mean = serology_sample * R / (N * p_p_risk), std = sqrt(serology_sample * R / (N * p_p_risk) * (1 - R / (N * p_p_risk))))
   }
 }
