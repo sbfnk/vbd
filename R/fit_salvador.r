@@ -32,7 +32,11 @@ bi <- libbi(vbd_model, input=list(serology_sample=serology_sample),
 ## plot
 p <- plot(bi, date.origin=as.Date("2015-01-05") - 7, date.unit="week", obs=c("Serology", "Incidence"), state=c("beta_track"), verbose=TRUE, type=c("obs", "param", "logeval", "state"))
 model_name <- "poisson_over_fullN"
-ggsave(paste0("salvador_", model_name, ".pdf"), p$trajectories)
+ggsave(paste0("salvador_", model_name, "_states.pdf"), p$trajectories)
+ggsave(paste0("salvador_", model_name, "_traces.pdf"), p$traces)
+ggsave(paste0("salvador_", model_name, "_densities,pdf"), p$densities)
+ggsave(paste0("salvador_", model_name, "_pairs.pdf"), p$pairs)
+ggsave(paste0("salvador_", model_name, "_pairs.pdf"), p$correlations)
 
 ## save
 save_libbi(bi, paste0("salvador_", model_name, ".rds"))
