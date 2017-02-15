@@ -27,10 +27,10 @@ bi <- libbi(vbd_model, input=list(serology_sample=serology_sample),
   optimise() %>%
   sample(proposal="prior", nsamples=1000) %>%
   adapt_proposal(min=0.1, max=0.4) %>%
-  sample(sample_obs=TRUE, nsamples=100000, output_all=TRUE, thin=10)
+  sample(sample_obs=TRUE, nsamples=10000)
 
 ## plot
-p <- plot(bi, date.origin=as.Date("2015-01-05") - 7, date.unit="week", obs=c("Serology", "Incidence"), state=c("beta_track", "S"), verbose=TRUE, type=c("obs", "param", "logeval", "state"))
+p <- plot(bi, date.origin=as.Date("2015-01-05") - 7, date.unit="week", obs=c("Serology", "Incidence"), state=c("beta_track"), verbose=TRUE, type=c("obs", "param", "logeval", "state"))
 model_name <- "poisson_over_fullN"
 ggsave(paste0("salvador_", model_name, ".pdf"), p$trajectories)
 

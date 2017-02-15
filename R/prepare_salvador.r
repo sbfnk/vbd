@@ -41,7 +41,7 @@ incidence %<>%
 
 case_data <- incidence %>%
   filter(region == "salvador" & infection == "zikv") %>%
-  filter(date < "2015-12-10") %>%
+  filter(date < "2015-11-01") %>%
   mutate(time=1:n()) %>%
   rename(value=incidence) %>%
   select(time, value)

@@ -56,7 +56,7 @@ model vbd {
     initI ~ gamma(shape = 1, scale = 10)
 
     // weak prior on p_p_over
-    p_p_over ~ beta(1, 5)
+    p_p_over ~ beta(1, 10)
   }
 
   sub initial {
