@@ -23,20 +23,26 @@ vbd_model <- bi_model(paste(model_dir, "vbd.bi", sep="/")) %>%
 ## fit
 bi <- libbi(vbd_model, input=list(serology_sample=serology_sample),
             obs=obs,
-            end_time=max(obs$Sero$time)) %>%
+            end_time=max(obs$Sero$time))
+
+bi_prior <- sample(bi, target="prior", nsamples=10000)
+
+bi %<>%
   optimise() %>%
   sample(proposal="prior", nsamples=1000) %>%
   adapt_proposal(min=0.1, max=0.4) %>%
-  sample(sample_obs=TRUE, nsamples=10000)
+  sample(sample_obs=TRUE, nsamples=500000, thin=50)
 
 ## plot
-p <- plot(bi, date.origin=as.Date("2015-01-05") - 7, date.unit="week", obs=c("Serology", "Incidence"), state=c("beta_track"), verbose=TRUE, type=c("obs", "param", "logeval", "state"))
+p <- plot(bi, prior=bi_prior, date.origin=as.Date("2015-01-05") - 7, date.unit="week", obs=c("Serology", "Incidence"), state=c("beta_track"), verbose=TRUE, type=c("obs", "param", "logeval", "state"))
 model_name <- "poisson_over_fullN"
-ggsave(paste0("salvador_", model_name, "_states.pdf"), p$trajectories)
-ggsave(paste0("salvador_", model_name, "_traces.pdf"), p$traces)
-ggsave(paste0("salvador_", model_name, "_densities,pdf"), p$densities)
-ggsave(paste0("salvador_", model_name, "_pairs.pdf"), p$pairs)
-ggsave(paste0("salvador_", model_name, "_pairs.pdf"), p$correlations)
 
 ## save
 save_libbi(bi, paste0("salvador_", model_name, ".rds"))
+
+ggsave(paste0("salvador_", model_name, "_states.pdf"), p$trajectories)
+ggsave(paste0("salvador_", model_name, "_traces.pdf"), p$traces)
+ggsave(paste0("salvador_", model_name, "_densities.pdf"), p$densities)
+ggsave(paste0("salvador_", model_name, "_pairs.pdf"), p$pairs)
+ggsave(paste0("salvador_", model_name, "_correlations.pdf"), p$correlations)
+ggsave(paste0("salvador_", model_name, "_logevals.pdf"), p$logevals)
