@@ -96,7 +96,7 @@ model vbd {
 
   sub observation {
     // cases: (approximately) binomial
-    Incidence ~ truncated_gaussian(mean = p_p_rep * Z, std = sqrt(p_p_rep * Z / p_p_over), lower=0)
+    Incidence ~ truncated_gaussian(mean = p_p_rep * Z, std = sqrt(p_p_rep * Z / (1 - p_p_over)), lower=0)
     // serology: (approximately) binomial
     Serology ~ gaussian(mean = serology_sample * R / (N * p_p_risk), std = sqrt(serology_sample * R / (N * p_p_risk) * (1 - R / (N * p_p_risk))))
   }
