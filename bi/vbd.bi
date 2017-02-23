@@ -27,9 +27,7 @@ model vbd {
   state R (has_output = 0) // recovered
   state Z (has_output = 0) // incidence accumulator
   state beta_track
-
-  // auxiliary variable
-  state next_obs (has_output = 0) // time of next observation (recorded for incidence calculation)
+  state Reff
 
   input serology_sample
 
@@ -65,8 +63,8 @@ model vbd {
     I <- initI
     R <- N * p_p_immune * p_p_risk
     Z <- 0
-    next_obs <- 0
     beta_track <- p_R0/p_d_inf_h * (1 + p_s_amp*cos(6.283*(-p_s_peak)/52))
+    Reff <- p_R0 * S / (N * p_p_risk) * (1 + p_s_amp*cos(6.283*(-p_s_peak)/52))
   }
 
   sub transition {
@@ -79,11 +77,9 @@ model vbd {
 
     beta_track <- beta
 
-    // reset accumulator if t_next_obs > next_obs
-    Z <- (t_next_obs > next_obs ? 0 : Z)
-    // set next_obs to the time of the next observation
-    next_obs <- (t_next_obs > next_obs ? t_next_obs : next_obs)
-
+    Reff <- beta/recovery_rate * S/(N * p_p_risk)
+    // reset accumulator 
+    Z <- 0
 
     ode (alg='RK4',h=0.001) {
       dS/dt = -beta*S*I/(N*p_p_risk)

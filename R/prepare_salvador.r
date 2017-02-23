@@ -1,6 +1,7 @@
 library('tidyverse')
 library('magrittr')
 library('readxl')
+library('lubridate')
 
 ## read data
 incidence <- read_excel("table\ for\ modeling\ ZIKV.xlsx", "Notified cases bahia salv", skip=2)
@@ -50,3 +51,31 @@ serology_data <- data.frame(time=max(case_data$time),
                             value=427)
 
 saveRDS(list(Incidence=case_data, Serology=serology_data), "fit_data.rds")
+
+##############
+## serology ##
+##############
+
+serology <- read_excel("table\ for\ modeling\ ZIKV.xlsx", "ZIKV 2016 table", col_names=FALSE, skip=1) %>%
+  rename(sample=X1, date=X2, zika=X3) %>%
+  mutate(date=as.Date(date),
+         month=date-mday(date)+1)
+
+sero_summary <- serology %>%
+  group_by(month) %>%
+  summarise(pos=sum(zika == "positivo"),
+            neg=sum(zika == "negativo"),
+            n=n()) %>%
+  ungroup %>%
+  filter(!is.na(month))
+
+errors <- binom.confint(sero_summary$pos, sero_summary$n, method="wilson")
+
+sero_summary <- cbind(sero_summary, errors %>% select(-x, -n, -method))
+
+ggplot(sero_summary,
+       aes(x=month, y=mean, ymin=lower, ymax=upper)) +
+  geom_point() +
+  geom_errorbar()
+
+ggplot(serology, aes(x=month, fill=sample))+geom_bar(position="stack")+scale_fill_brewer(palette="Set1")
