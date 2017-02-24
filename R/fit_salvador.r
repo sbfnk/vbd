@@ -36,28 +36,31 @@ bi %<>%
 
 save_libbi(bi, "salvador.rds")
 
-## bi <- read_libbi("~/Research/Analysis/Zika/salvador_poisson_over_fullN.rds")
-## bi$model[48] <- "Z <- 0"
-pred <- predict(bi, end_time=104, noutputs=104, sample_obs=TRUE, verbose=TRUE)
-
-res <- bi_read(pred)
-
-## calc R_eff
-## turn Serology into %
+pred <- predict(bi, end_time=80, noutputs=80, sample_obs=TRUE)
 
 common_plot_options <-
   list(x=pred,
+       model=vbd_model,
        all.times=TRUE,
        select=list(time=1:104),
-       hline=c(`R[eff]`=1),
+       hline=c(`Reff`=1),
        labels=c(beta_track="beta", Reff="R[eff]"),
        date.origin=as.Date("2015-01-05") - 7, date.unit="week")
 
+## calculate R0 at the beginning of the outbreak
+R0_calc <- bi_read(pred)[c("beta_track", "p_d_inf_h")]
+R0_calc <- lapply(names(R0_calc), function(x) {setnames(R0_calc[[x]], "value", x)})
+R0_df <- data.table(merge(R0_calc[[1]], R0_calc[[2]]))
+R0_df <- R0_df[time == 0]
+R0_df <- R0_df[, value := beta_track * p_d_inf_h]
+res$
+
+## plot figure
 p <- list()
-p[["A"]] <- do.call(plot_libbi, c(common_plot_options, list(type="obs", obs="Incidence")))$trajectories + ggtitle("Incidence")
-p[["B"]] <- do.call(plot_libbi, c(common_plot_options, list(type="obs", obs="Serology")))$trajectories + ggtitle("Serology")
-p[["C"]] <- do.call(plot_libbi, c(common_plot_options, list(type="state", state="beta_track")))$trajectories + ggtitle("Seasonal variation in transmission")
-p[["D"]] <- do.call(plot_libbi, c(common_plot_options, list(type="state", state="Reff")))$trajectories + ggtitle("Reproduction number")
+p[["A"]] <- do.call(plot_libbi, c(common_plot_options, list(type="obs", obs="Incidence")))$trajectories + scale_y_continuous("Weekly incidence") + scale_x_date("", date_labels="%b %Y")
+p[["B"]] <- do.call(plot_libbi, c(common_plot_options, list(type="obs", obs="Serology")))$trajectories + scale_y_continuous("Percent immune", labels=percent) + scale_x_date("", date_labels="%b %Y")
+p[["C"]] <- do.call(plot_libbi, c(common_plot_options, list(type="state", state="beta_track")))$trajectories + scale_y_continuous("Transmission rate") + scale_x_date("", date_labels="%b %Y")
+p[["D"]] <- do.call(plot_libbi, c(common_plot_options, list(type="state", state="Reff")))$trajectories + scale_y_continuous("Reproduction number") + scale_x_date("", date_labels="%b %Y")
 
 plot <- do.call(plot_grid, c(p, list(labels=names(p), ncol=2)))
 
