@@ -47,7 +47,7 @@ case_data <- incidence %>%
   rename(value=incidence) %>%
   select(time, value)
 
-serology_data <- data.frame(time=max(case_data$time), value=427/633)
+serology_data <- data.frame(time=max(case_data$time), value=401/633)
 
 saveRDS(list(Incidence=case_data, Serology=serology_data), "fit_data.rds")
 
