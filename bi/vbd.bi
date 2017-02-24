@@ -35,10 +35,9 @@ model vbd {
   obs Serology
 
   sub parameter {
-    // 95% approximately 2 * std away from the mean
+    // from Ferguson et al., Science 95% approximately 2 * std away from the mean
     p_d_gen ~ truncated_gaussian(mean = 20/7, std = 2/7, lower = 0)
-    // 95% approximately 2 * std away from the mean, 1.5d shift see Ferguson et al., science
-    p_d_inf_h ~ truncated_gaussian(mean = (5.9 - 1.5)/7, std = 0.25/7, lower = 0)
+    p_d_inf_h ~ truncated_gaussian(mean = 6/7, std = 1.2/7, lower = 0)
 
     p_p_immune ~ gamma(shape = 1, scale = 0.06)
     p_p_risk ~ uniform(lower = 0.1, upper = 1)
@@ -92,7 +91,7 @@ model vbd {
 
   sub observation {
     // cases: (approximately) binomial
-    Incidence ~ truncated_gaussian(mean = p_p_rep * Z, std = sqrt(p_p_rep * Z / (1 - p_p_over)), lower=0)
+    Incidence ~ truncated_gaussian(mean = p_p_rep * Z, std = sqrt(p_p_rep * Z* (1 + p_p_rep * Z * (p_p_over ** 2))), lower=0)
     // serology: (approximately) binomial
     Serology ~ gaussian(mean = R / (N * p_p_risk), std = sqrt(R / (N * p_p_risk) * (1 - R / (N * p_p_risk)) / serology_sample))
   }
