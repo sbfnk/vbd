@@ -24,7 +24,10 @@ vbd_model <- bi_model(paste(model_dir, "vbd.bi", sep="/")) %>%
 bi <- libbi(vbd_model,
             input=list(serology_sample=n_serology),
             obs=obs,
-            end_time=max(obs$Sero$time))
+            end_time=max(obs$Sero$time),
+            working_folder=path.expand("~/Data/Temp"),
+            nthreads=12,
+            assert=FALSE)
 
 bi_prior <- sample(bi, target="prior", nsamples=5000)
 
@@ -35,6 +38,7 @@ bi %<>%
   sample(sample_obs=TRUE, nsamples=500000, thin=50)
 
 save_libbi(bi, "salvador.rds")
+date()
 
 pred <- predict(bi, end_time=80, noutputs=80, sample_obs=TRUE)
 
@@ -42,7 +46,6 @@ save_libbi(pred, "salvador_prediction.rds")
 
 common_plot_options <-
   list(x=pred,
-       model=vbd_model,
        all.times=TRUE,
        select=list(time=1:104),
        hline=c(`Reff`=1),
@@ -57,6 +60,7 @@ R0_calc <- lapply(names(R0_calc), function(x) {setnames(R0_calc[[x]], "value", x
 R0_df <- data.table(merge(R0_calc[[1]], R0_calc[[2]]))
 R0_df <- R0_df[time == 0]
 R0_df <- R0_df[, value := beta_track * p_d_inf_h]
+
 quantile(R0_df$value, c(0.025, 0.975))
 quantile(res$p_p_rep$value, c(0.025, 0.975))
 

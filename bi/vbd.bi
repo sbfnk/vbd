@@ -20,7 +20,6 @@ model vbd {
   param initI // initial number of infectious
 
   // ** states
-  // humans
   state S (has_output = 0) // susceptible
   state E (has_output = 0) // incubating
   state I (has_output = 0) // infectious
@@ -92,7 +91,7 @@ model vbd {
 
   sub observation {
     // cases: (approximately) binomial
-    Incidence ~ truncated_gaussian(mean = p_p_rep * Z, std = sqrt(p_p_rep * Z* (1 + p_p_rep * Z * (p_p_over ** 2))), lower=0)
+    Incidence ~ truncated_gaussian(mean = p_p_rep * Z, std = sqrt(p_p_rep * Z / (1 - p_p_over)), lower=0)
     // serology: (approximately) binomial
     Serology ~ gaussian(mean = R / (N * p_p_risk), std = sqrt(R / (N * p_p_risk) * (1 - R / (N * p_p_risk)) / serology_sample))
   }
