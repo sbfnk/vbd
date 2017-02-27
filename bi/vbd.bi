@@ -36,8 +36,9 @@ model vbd {
 
   sub parameter {
     // from Ferguson et al., Science 95% approximately 2 * std away from the mean
-    p_d_gen ~ truncated_gaussian(mean = 20/7, std = 2/7, lower = 0)
-    p_d_inf_h ~ truncated_gaussian(mean = 6/7, std = 1.2/7, lower = 0)
+    // incubation = IIP + mosquito-to-human GT
+    p_d_inc_h ~ truncated_gaussian(mean = 17.8/7, std = 3/7, lower = 0)
+    p_d_inf_h ~ truncated_gaussian(mean = 4.7/7, std = 1.2/7, lower = 0)
 
     p_p_immune ~ gamma(shape = 1, scale = 0.06)
     p_p_risk ~ uniform(lower = 0.1, upper = 1)
@@ -68,7 +69,7 @@ model vbd {
 
   sub transition {
 
-    inline incubation_rate = 1/(p_d_gen-p_d_inf_h)
+    inline incubation_rate = 1/p_d_inc_h
     inline recovery_rate = 1/p_d_inf_h
     inline infection_rate = p_R0/p_d_inf_h
 
