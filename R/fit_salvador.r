@@ -46,6 +46,7 @@ save_libbi(pred, "salvador_prediction.rds")
 
 common_plot_options <-
   list(x=pred,
+       plot=FALSE,
        all.times=TRUE,
        select=list(time=1:104),
        hline=c(`Reff`=1),
@@ -74,7 +75,7 @@ p[["D"]] <- do.call(plot_libbi, c(common_plot_options, list(type="state", state=
 plot <- do.call(plot_grid, c(p, list(labels=names(p), ncol=2)))
 ggsave("salvador_trajectories.pdf", plot)
 
-p <- plot(pred, prior=bi_prior, type=c("param", "logeval"))
+p <- plot(pred, prior=bi_prior, type=c("param", "logeval"), plot=FALSE)
 ggsave("salvador_densities.pdf", p$densities)
 ggsave("salvador_traces.pdf", p$traces)
 ggsave("salvador_pairs.pdf", p$pairs, height=10, width=10)
