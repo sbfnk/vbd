@@ -62,7 +62,9 @@ R0_df <- data.table(merge(R0_calc[[1]], R0_calc[[2]]))
 R0_df <- R0_df[time == 0]
 R0_df <- R0_df[, value := beta_track * p_d_inf_h]
 
+mean(R0_df$value)
 quantile(R0_df$value, c(0.025, 0.975))
+mean(res$p_p_rep$value)
 quantile(res$p_p_rep$value, c(0.025, 0.975))
 
 ## plot figure
