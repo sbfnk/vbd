@@ -3,7 +3,7 @@ model vbd {
   const N = 0 // to be set in R script
 
   // ** parameters
-  param p_d_gen // generation interval
+  param p_d_inc_h // generation interval
   param p_d_inf_h // infectious period of mosquitoes
 
   param p_p_risk // proportion of the population at risk
@@ -36,7 +36,8 @@ model vbd {
   sub parameter {
     // from Ferguson et al., Science 95% approximately 2 * std away from the mean
     // incubation = IIP + mosquito-to-human GT
-    p_d_inc_h ~ truncated_gaussian(mean = 17.8/7, std = 3/7, lower = 0)
+    // error on p_d_inc_h via error propgation rule with mean distance from expectation
+    p_d_inc_h ~ truncated_gaussian(mean = 17.8/7, std = 2.3/7, lower = 0)
     p_d_inf_h ~ truncated_gaussian(mean = 4.7/7, std = 1.2/7, lower = 0)
 
     p_p_immune ~ gamma(shape = 1, scale = 0.06)
