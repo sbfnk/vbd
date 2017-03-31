@@ -24,24 +24,20 @@ vbd_model <- bi_model(paste(model_dir, "vbd.bi", sep="/")) %>%
 bi <- libbi(vbd_model,
             input=list(serology_sample=n_serology),
             obs=obs,
-            end_time=max(obs$Sero$time),
-            working_folder=path.expand("~/Data/Temp"),
-            nthreads=12,
-            assert=FALSE)
+            end_time=max(obs$Sero$time))
 
 bi_prior <- sample(bi, target="prior", nsamples=5000)
+save_libbi(bi_prior, "salvador_prior.rds")
 
 bi %<>%
   optimise() %>%
   sample(proposal="prior", nsamples=5000) %>%
   adapt_proposal(min=0.1, max=0.4) %>%
   sample(sample_obs=TRUE, nsamples=500000, thin=50)
-
-save_libbi(bi, "salvador.rds")
+save_libbi(bi, "salvador_posterior.rds")
 date()
 
 pred <- predict(bi, end_time=80, noutputs=80, sample_obs=TRUE)
-
 save_libbi(pred, "salvador_prediction.rds")
 
 common_plot_options <-
@@ -77,7 +73,20 @@ p[["D"]] <- do.call(plot_libbi, c(common_plot_options, list(type="state", state=
 plot <- do.call(plot_grid, c(p, list(labels=names(p), ncol=2)))
 ggsave("salvador_trajectories.pdf", plot)
 
-p <- plot(pred, prior=bi_prior, type=c("param", "logeval"), plot=FALSE)
+p <- plot(pred,
+          prior=bi_prior,
+          type=c("param", "logeval"),
+          labels=c(p_d_inc_h="D[inc,h]",
+                   p_d_inf_h="D[inf,h]",
+                   p_R0="R[0]",
+                   p_p_rep="r",
+                   p_p_over="phi",
+                   p_s_peak="Peak week",
+                   p_s_amp="Peak amplitude",
+                   initI="I[0]"
+                   ),
+          pairs=FALSE, 
+          plot=FALSE)
 ggsave("salvador_densities.pdf", p$densities)
 ggsave("salvador_traces.pdf", p$traces)
-ggsave("salvador_pairs.pdf", p$pairs, height=10, width=10)
+ggsave("salvador_correlations.pdf", p$correlations)

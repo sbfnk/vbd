@@ -2,9 +2,8 @@ model vbd {
 
   const N = 0 // to be set in R script
 
-  // ** parameters
-  param p_d_inc_h // generation interval
-  param p_d_inf_h // infectious period of mosquitoes
+  param p_d_inc_h // dealy infection by a human -> infectiousness of next human case
+  param p_d_inf_h // infectious period of humans
 
   param p_p_risk // proportion of the population at risk
   param p_p_immune // proportion of the population at risk
@@ -19,7 +18,6 @@ model vbd {
 
   param initI // initial number of infectious
 
-  // ** states
   state S (has_output = 0) // susceptible
   state E (has_output = 0) // incubating
   state I (has_output = 0) // infectious
