@@ -2,6 +2,8 @@ library('rbi.helpers')
 library('magrittr')
 library('cowplot')
 library('scales')
+library('dplyr')
+library('data.table')
 
 ###################
 ## model fitting ##
@@ -40,15 +42,6 @@ date()
 pred <- predict(bi, end_time=80, noutputs=80, sample_obs=TRUE)
 save_libbi(pred, "salvador_prediction.rds")
 
-common_plot_options <-
-  list(x=pred,
-       plot=FALSE,
-       all.times=TRUE,
-       select=list(time=1:104),
-       hline=c(`Reff`=1),
-       labels=c(beta_track="beta", Reff="R[eff]"),
-       date.origin=as.Date("2015-01-05") - 7, date.unit="week")
-
 res <- bi_read(pred)
 
 ## calculate R0 at the beginning of the outbreak
@@ -63,15 +56,32 @@ quantile(R0_df$value, c(0.025, 0.975))
 mean(res$p_p_rep$value)
 quantile(res$p_p_rep$value, c(0.025, 0.975))
 
+res$Serology %<>%
+  mutate(value=value/n_serology)
+pred %<>% attach_file(file="output", data=res, force=TRUE)
+
+pred_obs <- bi_read(pred, file="obs")
+pred_obs$Serology %<>% mutate(value=value/n_serology)
+pred %<>% attach_file(file="obs", data=pred_obs, force=TRUE)
+
+common_plot_options <-
+  list(x=pred,
+       plot=FALSE,
+       all.times=TRUE,
+       select=list(time=1:104),
+       hline=c(`Reff`=1),
+       labels=c(beta_track="beta", Reff="R[eff]"),
+       date.origin=as.Date("2015-01-05") - 7, date.unit="week")
+
 ## plot figure
 p <- list()
-p[["A"]] <- do.call(plot_libbi, c(common_plot_options, list(type="obs", obs="Incidence")))$trajectories + scale_y_continuous("Weekly incidence") + scale_x_date("", date_labels="%b %Y")
-p[["B"]] <- do.call(plot_libbi, c(common_plot_options, list(type="obs", obs="Serology")))$trajectories + scale_y_continuous("Percent immune", labels=percent) + scale_x_date("", date_labels="%b %Y")
-p[["C"]] <- do.call(plot_libbi, c(common_plot_options, list(type="state", state="beta_track")))$trajectories + scale_y_continuous("Transmission rate") + scale_x_date("", date_labels="%b %Y")
-p[["D"]] <- do.call(plot_libbi, c(common_plot_options, list(type="state", state="Reff")))$trajectories + scale_y_continuous("Reproduction number") + scale_x_date("", date_labels="%b %Y")
+p[["A"]] <- do.call(plot, c(common_plot_options, list(type="obs", obs="Incidence")))$trajectories + scale_y_continuous("Weekly incidence", labels=comma) + scale_x_date("", date_labels="%b %Y")
+p[["B"]] <- do.call(plot, c(common_plot_options, list(type="obs", obs="Serology")))$trajectories + scale_y_continuous("Percent immune", labels=percent) + scale_x_date("", date_labels="%b %Y")
+p[["C"]] <- do.call(plot, c(common_plot_options, list(type="state", state="beta_track")))$trajectories + scale_y_continuous("Transmission rate") + scale_x_date("", date_labels="%b %Y")
+p[["D"]] <- do.call(plot, c(common_plot_options, list(type="state", state="Reff")))$trajectories + scale_y_continuous("Reproduction number") + scale_x_date("", date_labels="%b %Y")
 
-plot <- do.call(plot_grid, c(p, list(labels=names(p), ncol=2)))
-ggsave("salvador_trajectories.pdf", plot)
+pg <- do.call(plot_grid, c(p, list(labels=names(p), ncol=2)))
+ggsave("salvador_trajectories.pdf", pg)
 
 p <- plot(pred,
           prior=bi_prior,
@@ -81,8 +91,8 @@ p <- plot(pred,
                    p_R0="R[0]",
                    p_p_rep="r",
                    p_p_over="phi",
-                   p_s_peak="Peak week",
-                   p_s_amp="Peak amplitude",
+                   p_s_peak="Peak~week",
+                   p_s_amp="Peak~amplitude",
                    initI="I[0]"
                    ),
           pairs=FALSE, 

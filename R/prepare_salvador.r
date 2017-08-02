@@ -15,7 +15,7 @@ names(incidence)[1:2] <- c("year", "week") # date headers
 
 incidence %<>%
   select(-starts_with("NA")) %>% # remove columns without header
-  filter(!is.na(week)) %>% # remove empty rows
+  dplyr::filter(!is.na(week)) %>% # remove empty rows
   mutate(year=as.integer(gsub("[^0-9]", "", year))) %>% # convert year column to integer
   fill(year) %>% # fill NAs
   mutate(date=as.Date(paste(year, week, 1, sep="-"), "%Y-%W-%u")) # make dates from Mondays of each week
@@ -41,13 +41,20 @@ incidence %<>%
 ##################################
 
 case_data <- incidence %>%
-  filter(region == "salvador" & infection == "zikv") %>%
-  filter(date < "2015-11-01") %>%
+  dplyr::filter(region == "salvador" & infection == "zikv") %>%
+  dplyr::filter(date < "2015-11-01")
+
+max_case_date <- max(case_data$date)
+
+case_data %<>%
   mutate(time=1:n()) %>%
   rename(value=incidence) %>%
   select(time, value)
 
-serology_data <- data.frame(time=max(case_data$time), value=401/633)
+serology_time <- max(case_data$time) +
+  round(as.integer(as.Date("2016-04-01") - max_case_date) / 7)
+
+serology_data <- data.frame(time=serology_time, value=401)
 
 saveRDS(list(Incidence=case_data, Serology=serology_data), "fit_data.rds")
 
@@ -56,7 +63,7 @@ saveRDS(list(Incidence=case_data, Serology=serology_data), "fit_data.rds")
 ##############
 
 serology <- read_excel("table\ for\ modeling\ ZIKV.xlsx", "ZIKV 2016 table", col_names=FALSE, skip=1) %>%
-  rename(sample=X1, date=X2, zika=X3) %>%
+  rename(sample=X__2, date=X__3, zika=X__4) %>%
   mutate(date=as.Date(date),
          month=date-mday(date)+1)
 
