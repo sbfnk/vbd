@@ -11,7 +11,7 @@ model vbd {
   param p_R0 // human-to-human basic reproduction number
 
   param p_p_rep // proportion of cases reported
-  param p_p_over // overdispersion of reporting
+  param p_p_over // multiplicative overdispersion of reporting
 
   param p_s_peak // seasonal peak week
   param p_s_amp // strength of seasonal forcing
@@ -51,8 +51,8 @@ model vbd {
     // weak prior on I
     initI ~ gamma(shape = 1, scale = 10)
 
-    // weak prior on p_p_over
-    p_p_over ~ beta(1, 10)
+    // regularising priors
+    p_p_over_mult ~ beta(10, 1)
   }
 
   sub initial {
@@ -79,7 +79,7 @@ model vbd {
     // reset accumulator 
     Z <- 0
 
-    ode (alg='RK4',h=0.001) {
+    ode {
       dS/dt = -beta*S*I/(N*p_p_risk)
       dE/dt = +beta*S*I/(N*p_p_risk)-incubation_rate*E
       dI/dt = +incubation_rate*E-recovery_rate*I
@@ -89,9 +89,10 @@ model vbd {
   }
 
   sub observation {
-    // cases: (approximately) binomial
-    Incidence ~ truncated_gaussian(mean = p_p_rep * Z, std = sqrt(p_p_rep * Z / (1 - p_p_over)), lower=0)
-    // serology: (approximately) binomial
-    Serology ~ gaussian(mean = R / (N * p_p_risk), std = sqrt(R / (N * p_p_risk) * (1 - R / (N * p_p_risk)) / serology_sample))
+    // cases: (approximately) Poisson
+    // use max(0, Z) to mitigate numerical inaccuracies
+    Incidence ~ truncated_gaussian(mean = p_p_rep * max(0, Z), std = sqrt(p_p_rep * max(0, Z) / (1 - p_p_over_mult)), lower=0)
+    // serology: binomial
+    Serology ~ binomial(size = serology_sample, prob = R / (N * p_p_risk))
   }
 }
