@@ -51,7 +51,7 @@ model vbd {
     // weak prior on I
     initI ~ gamma(shape = 1, scale = 10)
 
-    // regularising priors
+    // regularising prior
     p_p_over ~ beta(1, 10)
   }
 
@@ -70,18 +70,17 @@ model vbd {
     inline incubation_rate = 1/p_d_inc_h
     inline recovery_rate = 1/p_d_inf_h
     inline infection_rate = p_R0/p_d_inf_h
+    inline transmission_rate = infection_rate*(1+p_s_amp*cos(6.283*(t_now-p_s_peak)/52))
 
-    inline beta = infection_rate*(1+p_s_amp*cos(6.283*(t_now-p_s_peak)/52))
+    beta_track <- transmission_rate
 
-    beta_track <- beta
-
-    Reff <- beta/recovery_rate * S/(N * p_p_risk)
+    Reff <- transmission_rate/recovery_rate * S/(N * p_p_risk)
     // reset accumulator 
     Z <- 0
 
     ode {
-      dS/dt = -beta*S*I/(N*p_p_risk)
-      dE/dt = +beta*S*I/(N*p_p_risk)-incubation_rate*E
+      dS/dt = -transmission_rate*S*I/(N*p_p_risk)
+      dE/dt = +transmission_rate*S*I/(N*p_p_risk)-incubation_rate*E
       dI/dt = +incubation_rate*E-recovery_rate*I
       dR/dt = +recovery_rate*I
       dZ/dt = +incubation_rate*E
