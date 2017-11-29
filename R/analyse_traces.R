@@ -257,7 +257,7 @@ analyse_traces <- function(models, dir)
 
     for (short_model in all_models)
     {
-	model <- sub("_shorter", "", short_model)
+      model <- sub("_shorter", "", short_model)
         all_model <- paste(model, "all", sep = "_")
         message(all_model)
         res[[all_model]][["trace"]] <- list()
