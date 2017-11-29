@@ -80,6 +80,7 @@ library('rbi.helpers')
 library('cowplot')
 library('stringi')
 library('truncnorm')
+library('magrittr')
 
 code_dir <- path.expand("~/code/vbd/")
 data_dir <-  path.expand("~/Data/Zika/")
@@ -132,7 +133,7 @@ if (length(thin) == 0) thin <- 1
 ## get model
 if (length(model_file) == 0)
 {
-    model_file_name <- paste(code_dir, "bi", "vbd", sep = "/")
+    model_file_name <- paste(code_dir, "bi", "vbd_yap_fais", sep = "/")
     model_file_name <- paste(model_file_name, "bi", sep = ".")
 } else
 {
@@ -143,22 +144,21 @@ model <- bi_model(model_file_name)
 if (verbose) ## all states
 {
   no_output_pattern <- "has_output[[:space:]]*=[[:space:]]*0"
-  no_output <- grep(no_output_pattern, model$get_lines())
-  updated_lines <- sub(no_output_pattern, "",
-                       model$get_lines()[no_output])
-  model$update_lines(no_output, updated_lines)
+  no_output <- grep(no_output_pattern, model)
+  updated_lines <- sub(no_output_pattern, "", model[no_output])
+  model[no_output] <-  updated_lines
 }
 
 if (!patch)
 {
-  model$fix(p_p_patch_yap = 1,
-            p_red_foi_yap = 1)
+  model %<>% fix(p_p_patch_yap = 1,
+                 p_red_foi_yap = 1)
 }
 
 if (!stoch)
 {
-  model$fix(p_sd_lm = 0)
-  model$fix(n_lm = 0)
+  model %<>% fix(p_sd_lm = 0)
+  model %<>% fix(n_lm = 0)
 }
 
 if (fix_natural_history)
@@ -171,7 +171,7 @@ if (fix_natural_history)
     {
         p_d_life_m <- 2
     }
-    model$fix(p_d_life_m = p_d_life_m,
+    model %<>% fix(p_d_life_m = p_d_life_m,
               p_tau = p_tau)
 }
 
@@ -179,34 +179,32 @@ if (fix_move)
 {
     p_p_patch_yap <- 5.674918e-01
     p_red_foi_yap <- 3.548147e-03
-    model$fix(p_p_patch_yap = p_p_patch_yap,
+    model %<>% fix(p_p_patch_yap = p_p_patch_yap,
               p_red_foi_yap = p_red_foi_yap)
 }
 
 if (reverse)
 {
-    initial_line <- grep("^[[:space:]]*S_h\\[patch", model$get_lines())
-    new_line <- sub("patch == 0", "(patch == 0 && disease == 0)",
-                    model$get_lines()[initial_line])
-    model$update_lines(initial_line, new_line)
+    initial_line <- grep("^[[:space:]]*S_h\\[patch", model)
+    new_line <- sub("patch == 0", "(patch == 0 && disease == 0)", model[initial_line])
+    model[new_line] <- initial_line
 }
 
 if (!sero || pop)
 {
-  initial_susceptible_parameter_line <-
-    grep("p_initial_susceptible_yap.*~", model$get_lines())
-  model$insert_lines(after = initial_susceptible_parameter_line,
-                     "p_initial_susceptible_yap[1] <- 1")
+  initial_susceptible_parameter_line <- grep("p_initial_susceptible_yap.*~", model)
+  model %<>% insert_lines("p_initial_susceptible_yap[1] <- 1",
+                          after = initial_susceptible_parameter_line)
 }
 
 if (!pop)
 {
-    model$fix(p_pop_yap = 1)
+    model %<>% fix(p_pop_yap = 1)
 }
 
 if (!noise)
 {
-    model$fix(p_phi = 0)
+    model %<>% fix(p_phi = 0)
 }
 
 ## set output file name
@@ -228,7 +226,7 @@ suppressWarnings(dir.create(working_folder))
 
 ## set global options
 global_options <-  list(nsamples = pre_samples,
-                        "end-time" = tend,
+                        end_time = tend,
                         noutputs = tend)
 
 ## set seed
@@ -262,7 +260,7 @@ if (sample_prior)
     res_prior <- bi_read(prior, verbose = verbose)
     saveRDS(res_prior, paste(output_file_name, "prior.rds", sep = "_"))
     prior_model_file <- paste(output_file_name, "prior.bi", sep = "_")
-    prior$model$write_model_file(prior_model_file)
+    write_model(prior, prior_model_file)
 }
 
 ## sample prior with likelihoods
@@ -287,71 +285,35 @@ if (sero)
 {
     if ("yap_zika" %in% dt_ts$obs_id)
     {
-        obs[["Sero"]] <- data.frame(week = dt_ts %>% filter(obs_id == "yap_zika") %>% .$week %>% max, obs_id = "yap_zika", value = 0.73)
+        obs[["Sero"]] <- data.frame(week = dt_ts %>%
+                                        filter(obs_id == "yap_zika") %>%
+                                        .$week %>% max,
+                                    obs_id = "yap_zika", value = 0.73)
     }
 }
 
-saveRDS(obs, paste(output_file_name, "obs.rds", sep = "_"))
-
-model_prior <- model$propose_prior()
-bi_wrapper_prior <- libbi(model = model_prior, run = TRUE,
-                          obs = obs, global_options = global_options, client = "sample",
-                          dims = list(disease = c("dengue", "zika")),
-                          working_folder = working_folder,
-                          init = init, verbose = verbose)
+bi <- libbi(dims = list(disease = c("dengue", "zika")))
+bi %<>% sample(model = model, proposal="prior", obs = obs, options = global_options,
+                             working_folder = working_folder,
+                             init = init, verbose = verbose)
 
 if (stoch && length(num_particles) == 0)
 {
-  bi_wrapper_adapted <- adapt_particles(bi_wrapper_prior)
-} else
-{
-  bi_wrapper_adapted <- bi_wrapper_prior
+  bi %<>% adapt_particles
 }
 
 if (length(model_file) == 0)
 {
     cat(date(), "Adapting the proposal distribution.\n")
-    bi_wrapper_adapted <-
-      adapt_mcmc(bi_wrapper_adapted, min = 0.1, max = 0.4, max_iter = 10,
-                 scale = 2, correlations = TRUE)
-} else
-{
-    bi_wrapper_adapted$model <- model
+    bi %<>% adapt_proposal(min = 0.1, max = 0.4)
 }
 
 cat(date(), "Sampling from the posterior distribution of the full model.\n")
 
-## if (sample_obs)
-## {
-##   for (state in c("Z_h", "C_h"))
-##   {
-##     state_line_no <- grep(paste0("state[[:space:]]*", state),
-##                           bi_wrapper$model$get_lines())
-##     state_line <- bi_wrapper$model$get_lines()[state_line_no]
-##     bi_wrapper$model$update_lines(state_line_no, sub("has_output[[:space:]]*=[[:space:]]*0", "has_output = 1", state_line))
-##   }
-## }
-
 libbi_seed <- ceiling(runif(1, -1, .Machine$integer.max - 1))
-bi_wrapper <- bi_wrapper_adapted
-
-if (length(model_file) == 0)
-{
-    model_file <- paste(output_file_name, "bi", sep = ".")
-    bi_wrapper$model$write_model_file(model_file)
-}
-
-bi_wrapper$run(add_options = list("init-np" = pre_samples - 1,
-                                  nsamples = num_samples,
-                                  seed = libbi_seed),
-               init = bi_wrapper_adapted, verbose = verbose)
+bi %<>% sample(nsamples = num_samples, seed = libbi_seed)
 
 cat(date(), "Done.\n")
-
-command_file <- paste(output_file_name, "cmd", sep = ".")
-cat(bi_wrapper$result$command, file = command_file)
-
-final_model <- bi_wrapper$model
 
 res <- bi_read(read = bi_wrapper, thin = thin, verbose = verbose)
 
@@ -515,12 +477,6 @@ if (length(par_nb) == 0)
             .[["time"]]
         data <- data %>%
             filter(time >= first_obs & time <= last_obs)
-
-        ## p_obs <- plot_libbi(read = res, model = final_model, data = data,
-        ##                     density_args = list(adjust = 2), burn = burn,
-        ##                     extra.aes = list(color = "obs_id"),
-        ##                     states = "Cases", params = NULL, noises = NULL,
-        ##                     trend = "mean", plot = FALSE)
 
         p_obs <- plot_libbi(read = res, model = final_model, data = data,
                             density_args = list(adjust = 2), burn = burn,
