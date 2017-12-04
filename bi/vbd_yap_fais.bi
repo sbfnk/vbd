@@ -1,14 +1,11 @@
 model vbd_yap_fais {
 
   const e_setting = 2 // 0 = yap, 1 = fais
-  const e_disease = 2 // 0 = dengue, 1 = zika
-  const e_obs_id = 3 // 0 = yap/dengue, 1 = fais/dengue, 2 = yap/zika
-                     // setting = obs_id % 2, disease = obs_id / 2
+  const e_disease = 2 // 0 = dengue, 1 = zika, 2 = chik
   const e_patch = 2 // 2 patches
 
   dim setting(e_setting)
   dim disease(e_disease)
-  dim obs_id(e_obs_id)
   dim patch(e_patch)
 
   param p_d_inc_h[disease]
@@ -53,8 +50,8 @@ model vbd_yap_fais {
   state started[setting,disease](has_output = 0) // outbreak start switch
   state lm[patch,setting](has_output = 0)
 
-  obs Cases[obs_id]
-  obs Sero[obs_id]
+  obs Cases[setting,disease]
+  obs Sero[setting,disease]
 
   noise n_lm[patch,setting](has_output = 0)
 
@@ -154,8 +151,8 @@ model vbd_yap_fais {
   }
 
   sub observation {
-    Cases[obs_id] ~ truncated_gaussian(mean = p_rep[obs_id / 2] * (Z_h[0,obs_id % 2,obs_id / 2] + Z_h[1,obs_id % 2,obs_id / 2]), std = max(sqrt(p_rep[obs_id / 2] * (Z_h[0,obs_id % 2,obs_id / 2] + Z_h[1,obs_id % 2,obs_id / 2]) + (p_rep[obs_id / 2] ** 2) * ((Z_h[0,obs_id % 2,obs_id / 2] + Z_h[1,obs_id % 2,obs_id / 2]) ** 2) * (p_phi[obs_id % 2, obs_id / 2] ** 2)), 1), lower = 0)
-    Sero[obs_id] ~ gaussian(mean = (R_h[0,obs_id % 2,obs_id / 2] + R_h[1,obs_id % 2,obs_id / 2]) / p_N_h[obs_id % 2], std = 0.09 / 3.98)
+    Cases[setting,disease] ~ truncated_gaussian(mean = p_rep[disease] * (Z_h[0,setting,disease] + Z_h[1,setting,disease]), std = max(sqrt(p_rep[disease] * (Z_h[0,setting,disease] + Z_h[1,setting,disease]) + (p_rep[disease] ** 2) * ((Z_h[0,setting,disease] + Z_h[1,setting,disease]) ** 2) * (p_phi[setting, disease] ** 2)), 1), lower = 0)
+    Sero[setting,disease] ~ gaussian(mean = (R_h[0,setting,disease] + R_h[1,setting,disease]) / p_N_h[setting], std = 0.09 / 3.98)
   }
 
 }

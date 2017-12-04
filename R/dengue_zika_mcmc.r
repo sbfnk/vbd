@@ -121,11 +121,11 @@ tend <- max(tend)
 dt_ts <- bind_rows(ts) %>%
     group_by(week, setting, disease) %>%
     summarize(value = sum(value)) %>%
-    ungroup() %>%
-    mutate(obs_id = factor(paste(setting, disease, sep = "_"),
-                           levels = c("yap_dengue", "fais_dengue", "yap_zika"))) %>%
-    arrange(week, obs_id) %>%
-    select(week, obs_id, value) ## %>%
+    ungroup() ## %>%
+    ## mutate(obs_id = factor(paste(setting, disease, sep = "_"),
+    ##                        levels = c("yap_dengue", "fais_dengue", "yap_zika"))) %>%
+    ## arrange(week, obs_id) %>%
+    ## select(week, obs_id, value) ## %>%
     ## complete(week, obs_id, fill = list(value = 0))
 
 if (length(thin) == 0) thin <- 1
@@ -237,13 +237,19 @@ if (length(seed) == 0) {
 init <- list(p_N_h = data.frame(setting = factor(c("yap", "fais"),
                                                  levels = c("yap", "fais")),
                                 value = pop_size[c("yap", "fais")]))
-
-saveRDS(init, paste(output_file_name, "init.rds", sep = "_"))
-
-cat("Seed: ", seed, "\n")
-saveRDS(seed, file = paste0(output_file_name, "_seed.rds"))
-
 set.seed(seed)
+
+obs <- list(Cases = dt_ts)
+if (sero)
+{
+    if ("yap_zika" %in% dt_ts$obs_id)
+    {
+        obs[["Sero"]] <- data.frame(week = dt_ts %>%
+                                        filter(obs_id == "yap_zika") %>%
+                                        .$week %>% max,
+                                    obs_id = "yap_zika", value = 0.73)
+    }
+}
 
 if (sample_prior)
 {
@@ -251,16 +257,11 @@ if (sample_prior)
     libbi_seed <- ceiling(runif(1, -1, .Machine$integer.max - 1))
     global_options[["seed"]] <- libbi_seed
     ## sample prior
-    prior <- libbi(model = model, run = TRUE,
-                   global_options = global_options, client = "sample",
-                   working_folder = working_folder, target = "prior",
-                   dims = list(disease = c("dengue", "zika")),
-                   init = init, verbose = verbose)
+    prior <- sample(model = model, options = global_options,
+                    working_folder = working_folder, target = "prior",
+                    init = init, verbose = verbose, obs=obs)
     ## reading
-    res_prior <- bi_read(prior, verbose = verbose)
-    saveRDS(res_prior, paste(output_file_name, "prior.rds", sep = "_"))
-    prior_model_file <- paste(output_file_name, "prior.bi", sep = "_")
-    write_model(prior, prior_model_file)
+    save_libbi(prior, paste(output_file_name, "prior.rds", sep = "_"))
 }
 
 ## sample prior with likelihoods
@@ -280,22 +281,10 @@ if (stoch)
 {
   global_options[["nparticles"]] <- 1
 }
-obs <- list(Cases = dt_ts)
-if (sero)
-{
-    if ("yap_zika" %in% dt_ts$obs_id)
-    {
-        obs[["Sero"]] <- data.frame(week = dt_ts %>%
-                                        filter(obs_id == "yap_zika") %>%
-                                        .$week %>% max,
-                                    obs_id = "yap_zika", value = 0.73)
-    }
-}
 
-bi <- libbi(dims = list(disease = c("dengue", "zika")))
-bi %<>% sample(model = model, proposal="prior", obs = obs, options = global_options,
-                             working_folder = working_folder,
-                             init = init, verbose = verbose)
+bi <- sample(model = model, proposal="prior", obs = obs, options = global_options,
+             working_folder = working_folder,
+             init = init, verbose = verbose)
 
 if (stoch && length(num_particles) == 0)
 {
@@ -315,7 +304,13 @@ bi %<>% sample(nsamples = num_samples, seed = libbi_seed)
 
 cat(date(), "Done.\n")
 
-res <- bi_read(read = bi_wrapper, thin = thin, verbose = verbose)
+save_libbi(bi, paste0(output_file_name, ".rds"))
+
+if (!keep) unlink(working_folder, recursive = TRUE)
+
+quit()
+
+res <- bi_read(read = bi, thin = thin, verbose = verbose)
 
 ## 25% burn-in
 burn <- floor(num_samples / thin * 0.25)
