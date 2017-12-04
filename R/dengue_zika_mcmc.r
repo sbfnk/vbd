@@ -300,7 +300,7 @@ if (length(model_file) == 0)
 cat(date(), "Sampling from the posterior distribution of the full model.\n")
 
 libbi_seed <- ceiling(runif(1, -1, .Machine$integer.max - 1))
-bi %<>% sample(nsamples = num_samples, seed = libbi_seed)
+bi %<>% sample(nsamples = num_samples, seed = libbi_seed, thin = thin)
 
 cat(date(), "Done.\n")
 
@@ -309,8 +309,6 @@ save_libbi(bi, paste0(output_file_name, ".rds"))
 if (!keep) unlink(working_folder, recursive = TRUE)
 
 quit()
-
-res <- bi_read(read = bi, thin = thin, verbose = verbose)
 
 ## 25% burn-in
 burn <- floor(num_samples / thin * 0.25)
