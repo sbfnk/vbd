@@ -300,7 +300,7 @@ if (length(model_file) == 0)
 cat(date(), "Sampling from the posterior distribution of the full model.\n")
 
 libbi_seed <- ceiling(runif(1, -1, .Machine$integer.max - 1))
-bi %<>% sample(nsamples = num_samples, seed = libbi_seed, thin = thin)
+bi %<>% sample(nsamples = num_samples, seed = libbi_seed, thin = thin, sample_obs=TRUE)
 
 cat(date(), "Done.\n")
 
